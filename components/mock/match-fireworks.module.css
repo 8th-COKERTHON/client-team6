@@ -8,228 +8,47 @@
   pointer-events: auto;
 }
 
-.flash {
+.particle {
   position: absolute;
-  z-index: 4;
-  inset: 0;
-  background: #ffffff;
-  opacity: 0;
-  animation: arena-flash 160ms ease-out both;
-}
-
-.jet {
-  position: absolute;
-  z-index: 2;
-  bottom: -5svh;
-  left: var(--jet-x);
-  width: 8px;
-  height: var(--jet-height);
-  border-radius: 2px;
-  background: linear-gradient(
-    to top,
-    #ff0002 0%,
-    #ff8a00 22%,
-    #ffd54a 48%,
-    #ffffff 76%,
-    transparent 100%
-  );
-  box-shadow:
-    0 0 10px #ff0002,
-    0 0 22px #ff8a00,
-    0 0 36px rgb(255 213 74 / 75%);
-  opacity: 0;
-  transform: translateX(-50%) rotate(var(--jet-angle)) scaleY(0);
-  transform-origin: 50% 100%;
-  animation: pyro-jet 440ms cubic-bezier(0.16, 0.84, 0.32, 1) var(--jet-delay) both;
-  will-change: transform, opacity;
-}
-
-.spark {
-  position: absolute;
-  z-index: 3;
-  bottom: -12px;
-  left: var(--spark-x);
-  width: 2px;
-  height: var(--spark-height);
+  top: var(--burst-y);
+  left: var(--burst-x);
+  width: var(--particle-size);
+  height: calc(var(--particle-size) + 4px);
   border-radius: 1px;
-  background: var(--spark-color);
-  box-shadow: 0 0 6px var(--spark-color);
+  background: var(--particle-color);
+  box-shadow: 0 0 7px var(--particle-color);
   opacity: 0;
-  transform: translateX(-50%) translateY(0) rotate(var(--spark-rotation));
-  animation: pyro-spark 480ms cubic-bezier(0.14, 0.74, 0.28, 1) var(--spark-delay) both;
+  animation: firework-burst 680ms cubic-bezier(0.12, 0.72, 0.3, 1) var(--particle-delay) both;
   will-change: transform, opacity;
 }
 
-.final .jet {
-  animation-duration: 760ms;
-}
-
-.final .spark {
-  animation-duration: 800ms;
-}
-
-.goldSpark {
-  position: absolute;
-  z-index: 3;
-  top: 9svh;
-  left: var(--gold-x);
-  width: 3px;
-  height: 10px;
-  border-radius: 1px;
-  background: #ffd54a;
-  box-shadow: 0 0 7px #ffd54a;
-  opacity: 0;
-  animation: gold-rain 760ms ease-in var(--gold-delay) both;
-  will-change: transform, opacity;
-}
-
-.arenaImpact {
-  animation: arena-impact 280ms ease-out both;
-  transform-origin: center;
-}
-
-.arenaImpact.finalImpact {
-  animation-duration: 460ms;
-}
-
-.beltGlint {
-  position: relative;
-  overflow: hidden;
-}
-
-.beltGlint::after {
-  position: absolute;
-  z-index: 2;
-  inset: 0;
-  content: "";
-  background: linear-gradient(
-    105deg,
-    transparent 38%,
-    rgb(255 255 255 / 85%) 50%,
-    transparent 62%
-  );
-  mask: url("/images/ranking/champion-belt-annual.png") center / contain no-repeat;
-  -webkit-mask: url("/images/ranking/champion-belt-annual.png") center / contain no-repeat;
-  opacity: 0;
-  transform: translateX(-120%);
-  animation: belt-glint 820ms ease-out 240ms both;
-  pointer-events: none;
-}
-
-@keyframes arena-flash {
+@keyframes firework-burst {
   0% {
     opacity: 0;
+    transform: translate(-50%, -50%) scale(0.2) rotate(0deg);
   }
 
-  20% {
-    opacity: 0.72;
-  }
-
-  100% {
-    opacity: 0;
-  }
-}
-
-@keyframes pyro-jet {
-  0% {
-    opacity: 0;
-    transform: translateX(-50%) rotate(var(--jet-angle)) scaleY(0);
-  }
-
-  18% {
+  12% {
     opacity: 1;
   }
 
-  65% {
-    opacity: 1;
-    transform: translateX(-50%) rotate(var(--jet-angle)) scaleY(1);
-  }
-
-  100% {
-    opacity: 0;
-    transform: translateX(-50%) rotate(var(--jet-angle)) scaleY(0.92);
-  }
-}
-
-@keyframes pyro-spark {
-  0% {
-    opacity: 0;
-  }
-
-  16% {
+  68% {
     opacity: 1;
   }
 
   100% {
     opacity: 0;
-    transform: translateX(calc(-50% + var(--spark-drift)))
-      translateY(var(--spark-rise)) rotate(var(--spark-rotation)) scaleY(1.5);
-  }
-}
-
-@keyframes gold-rain {
-  0% {
-    opacity: 0;
-    transform: translateX(-50%) translateY(0) rotate(0deg);
-  }
-
-  18% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 0;
-    transform: translateX(calc(-50% + var(--gold-drift)))
-      translateY(var(--gold-fall)) rotate(var(--gold-rotation));
-  }
-}
-
-@keyframes arena-impact {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-
-  15% {
-    transform: translate3d(-3px, 1px, 0) scale(1.006);
-  }
-
-  35% {
-    transform: translate3d(3px, -2px, 0) scale(1.004);
-  }
-
-  55% {
-    transform: translate3d(-2px, 1px, 0) scale(1.002);
-  }
-
-  75% {
-    transform: translate3d(1px, 0, 0) scale(1);
-  }
-}
-
-@keyframes belt-glint {
-  0% {
-    opacity: 0;
-    transform: translateX(-120%);
-  }
-
-  22% {
-    opacity: 0.8;
-  }
-
-  100% {
-    opacity: 0;
-    transform: translateX(120%);
+    transform: translate(
+        calc(-50% + var(--particle-x)),
+        calc(-50% + var(--particle-y))
+      )
+      scale(0.7) rotate(var(--particle-rotation));
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .viewport {
-    display: none;
-  }
-
-  .arenaImpact,
-  .beltGlint::after {
-    animation: none;
+  .particle {
+    animation-duration: 1ms;
+    animation-delay: 0ms;
   }
 }
