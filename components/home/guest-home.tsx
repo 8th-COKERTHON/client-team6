@@ -36,7 +36,11 @@ function GuestHomeBackground() {
 function GuestHomeBrand() {
   return (
     <div className="relative z-10 flex flex-col items-center pt-[calc(env(safe-area-inset-top)+7.5rem)] text-center">
-      <div className="flex flex-col items-center justify-center">
+      <Link
+        aria-label="mock 화면으로 이동"
+        className="flex flex-col items-center justify-center rounded-[14px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ff0002]"
+        href="/mock"
+      >
         <Image
           alt="MME"
           className="size-12 rounded-[11.2px] object-cover"
@@ -48,7 +52,7 @@ function GuestHomeBrand() {
         <h1 className="text-[3.75rem] font-black leading-[1.4] tracking-[0.05em] text-white">
           MME
         </h1>
-      </div>
+      </Link>
       <p className="text-lg font-normal leading-[1.4] text-white">
         My Misery Entertainment
       </p>
