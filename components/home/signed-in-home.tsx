@@ -100,7 +100,7 @@ function DailyEpisodeCard() {
       </h1>
       <Link
         className="group mt-4 flex min-h-[5.5625rem] items-center justify-between rounded-[20px] border border-[#ff0002]/30 bg-[#292e38] p-5 transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ff0002]"
-        href="/entries/new"
+        href="/episodes/new"
       >
         <span className="min-w-0">
           <span className="block truncate text-lg font-semibold leading-[1.4] tracking-[-0.01em] text-white">

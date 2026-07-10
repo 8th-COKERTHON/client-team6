@@ -6,7 +6,7 @@ import {
   createEntry,
   suggestEntryTitle,
   type CreateEntryResult,
-} from "@/app/entries/new/actions";
+} from "@/app/episodes/new/actions";
 import { MobileHomeIndicator } from "@/components/auth/auth-screen";
 import { ActionButton, ActionButtonLink } from "@/components/ui/action-button";
 import { TextArea } from "@/components/ui/text-area";

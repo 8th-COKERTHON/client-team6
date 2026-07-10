@@ -167,7 +167,7 @@ export async function createEntry({
     }
 
     revalidatePath("/");
-    revalidatePath("/entries/new");
+    revalidatePath("/episodes/new");
     revalidatePath("/ring");
 
     return {
