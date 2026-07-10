@@ -60,6 +60,7 @@ export type RingMatchScreenProps = {
   currentRound: number;
   episodeA: RingBattleEpisode;
   episodeB: RingBattleEpisode;
+  isLocked?: boolean;
   onConfirmWinner: (winnerEpisodeId: number) => void;
   totalRounds: number;
 };
@@ -168,6 +169,7 @@ export function RingMatchScreen({
   currentRound,
   episodeA,
   episodeB,
+  isLocked = false,
   onConfirmWinner,
   totalRounds,
 }: RingMatchScreenProps) {
@@ -178,7 +180,7 @@ export function RingMatchScreen({
   const round: BattleRound = { episodeA, episodeB };
 
   function confirmWinner() {
-    if (!selectedSide) {
+    if (!selectedSide || isLocked) {
       return;
     }
 
@@ -188,6 +190,10 @@ export function RingMatchScreen({
   }
 
   function toggleCard(side: BattleSide) {
+    if (isLocked) {
+      return;
+    }
+
     setFlippedCards((current) => ({
       ...current,
       [side]: !current[side],
@@ -195,7 +201,10 @@ export function RingMatchScreen({
   }
 
   return (
-    <main className="min-h-svh bg-[#12161b] text-white">
+    <main
+      className="min-h-svh bg-[#12161b] text-white"
+      inert={isLocked}
+    >
       <div className="relative mx-auto min-h-svh w-full max-w-[375px] overflow-hidden bg-[#12161b]">
         <RingArenaBackground isSubtle />
         <RingHeader backHref={backHref} />
@@ -204,8 +213,13 @@ export function RingMatchScreen({
           currentRound={round}
           currentRoundNumber={currentRound}
           flippedCards={flippedCards}
+          isLocked={isLocked}
           onMoveNext={confirmWinner}
-          onSelectWinner={setSelectedSide}
+          onSelectWinner={(side) => {
+            if (!isLocked) {
+              setSelectedSide(side);
+            }
+          }}
           onToggleDetail={toggleCard}
           roundIndex={Math.max(currentRound - 1, 0)}
           selectedSide={selectedSide}
@@ -235,6 +249,7 @@ function BattleScreen({
   currentRoundNumber,
   flippedCards,
   heading = "이번 라운드, 더 힘들었던 에피소드에 판정을 내려주세요",
+  isLocked = false,
   onMoveNext,
   onSelectWinner,
   onToggleDetail,
@@ -248,6 +263,7 @@ function BattleScreen({
   currentRoundNumber?: number;
   flippedCards: CardFlipState;
   heading?: string;
+  isLocked?: boolean;
   onMoveNext: () => void;
   onSelectWinner: (side: BattleSide) => void;
   onToggleDetail: (side: BattleSide) => void;
@@ -258,7 +274,10 @@ function BattleScreen({
 }) {
   return (
     <>
-      <section className="relative z-10 px-4 pt-[calc(max(env(safe-area-inset-top),44px)+78px)] pb-[calc(7.75rem+env(safe-area-inset-bottom))]">
+      <section
+        aria-busy={isLocked}
+        className="relative z-10 px-4 pt-[calc(max(env(safe-area-inset-top),44px)+78px)] pb-[calc(7.75rem+env(safe-area-inset-bottom))]"
+      >
         <div className="max-w-[285px]">
           <h1 className="text-xl font-semibold leading-[1.4] text-white">
             {heading}
@@ -298,7 +317,11 @@ function BattleScreen({
       </section>
 
       <BottomActionArea>
-        <ActionButton isActive={Boolean(selectedSide)} onClick={onMoveNext}>
+        <ActionButton
+          disabled={isLocked}
+          isActive={Boolean(selectedSide)}
+          onClick={onMoveNext}
+        >
           {actionLabel ??
             (roundIndex === totalRounds - 1 ? "선택 완료" : "다음")}
         </ActionButton>

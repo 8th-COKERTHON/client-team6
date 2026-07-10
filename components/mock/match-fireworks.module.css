@@ -1,0 +1,54 @@
+.viewport {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  width: min(100%, 375px);
+  margin-inline: auto;
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.particle {
+  position: absolute;
+  top: var(--burst-y);
+  left: var(--burst-x);
+  width: var(--particle-size);
+  height: calc(var(--particle-size) + 4px);
+  border-radius: 1px;
+  background: var(--particle-color);
+  box-shadow: 0 0 7px var(--particle-color);
+  opacity: 0;
+  animation: firework-burst 680ms cubic-bezier(0.12, 0.72, 0.3, 1) var(--particle-delay) both;
+  will-change: transform, opacity;
+}
+
+@keyframes firework-burst {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.2) rotate(0deg);
+  }
+
+  12% {
+    opacity: 1;
+  }
+
+  68% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(
+        calc(-50% + var(--particle-x)),
+        calc(-50% + var(--particle-y))
+      )
+      scale(0.7) rotate(var(--particle-rotation));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .particle {
+    animation-duration: 1ms;
+    animation-delay: 0ms;
+  }
+}
