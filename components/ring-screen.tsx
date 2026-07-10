@@ -60,9 +60,7 @@ export type RingMatchScreenProps = {
   currentRound: number;
   episodeA: RingBattleEpisode;
   episodeB: RingBattleEpisode;
-  eventTitle: string;
   onConfirmWinner: (winnerEpisodeId: number) => void;
-  phaseLabel: string;
   totalRounds: number;
 };
 
@@ -170,9 +168,7 @@ export function RingMatchScreen({
   currentRound,
   episodeA,
   episodeB,
-  eventTitle,
   onConfirmWinner,
-  phaseLabel,
   totalRounds,
 }: RingMatchScreenProps) {
   const [selectedSide, setSelectedSide] = useState<BattleSide | null>(null);
@@ -207,7 +203,6 @@ export function RingMatchScreen({
           actionLabel={actionLabel}
           currentRound={round}
           currentRoundNumber={currentRound}
-          eyebrow={`${eventTitle} · ${phaseLabel}`}
           flippedCards={flippedCards}
           onMoveNext={confirmWinner}
           onSelectWinner={setSelectedSide}
@@ -238,7 +233,6 @@ function BattleScreen({
   actionLabel,
   currentRound,
   currentRoundNumber,
-  eyebrow,
   flippedCards,
   heading = "이번 라운드, 더 힘들었던 에피소드에 판정을 내려주세요",
   onMoveNext,
@@ -252,7 +246,6 @@ function BattleScreen({
   actionLabel?: string;
   currentRound: BattleRound;
   currentRoundNumber?: number;
-  eyebrow?: string;
   flippedCards: CardFlipState;
   heading?: string;
   onMoveNext: () => void;
@@ -267,11 +260,6 @@ function BattleScreen({
     <>
       <section className="relative z-10 px-4 pt-[calc(max(env(safe-area-inset-top),44px)+78px)] pb-[calc(7.75rem+env(safe-area-inset-bottom))]">
         <div className="max-w-[285px]">
-          {eyebrow ? (
-            <p className="mb-2 truncate text-xs font-semibold text-[#ff5b5d]">
-              {eyebrow}
-            </p>
-          ) : null}
           <h1 className="text-xl font-semibold leading-[1.4] text-white">
             {heading}
           </h1>

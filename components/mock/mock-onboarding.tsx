@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMockApp } from "@/components/mock/mock-app-provider";
+import { MockTitleField } from "@/components/mock/mock-title-field";
 import {
   MockHomeIndicator,
   MockPageFrame,
@@ -16,24 +17,13 @@ const EPISODE_COUNT = 5;
 
 export function MockOnboarding() {
   const router = useRouter();
-  const {
-    completeOnboarding,
-    fillOnboardingSamples,
-    state,
-    updateOnboarding,
-  } = useMockApp();
+  const { completeOnboarding, state, updateOnboarding } = useMockApp();
   const [hasStarted, setHasStarted] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [message, setMessage] = useState("");
   const activeDraft = state.onboardingDrafts[activeIndex];
   const isLastEpisode = activeIndex === EPISODE_COUNT - 1;
   const isCurrentReady = activeDraft ? isDraftReady(activeDraft) : false;
-
-  function fillSamplesAndStart() {
-    fillOnboardingSamples();
-    setHasStarted(true);
-    setMessage("");
-  }
 
   function updateDraft(
     field: "content" | "date" | "title",
@@ -85,31 +75,20 @@ export function MockOnboarding() {
         <section className="flex min-h-svh flex-col pt-[max(env(safe-area-inset-top),44px)]">
           <div className="flex flex-1 items-center justify-center px-4 pb-20 text-center">
             <div className="w-full max-w-[343px]">
-              <span className="inline-flex rounded-full bg-[#292e38] px-3 py-1 text-xs font-semibold text-[#ff5b5d]">
-                API-FREE MOCK
-              </span>
-              <h1 className="mt-5 text-xl font-semibold leading-[1.4] text-white">
-                당신의 첫 5개 에피소드로
-                <span className="block">10개의 리그전을 시작합니다</span>
+              <h1 className="text-xl font-semibold leading-[1.4] text-white">
+                <span className="block">환영합니다!</span>
+                <span className="block">이제 당신의 링을 만들 차례예요.</span>
               </h1>
               <p className="mt-4 text-sm font-medium leading-[1.6] text-[#b1b9c5]">
-                다섯 에피소드가 한 번씩 모두 맞붙고, 선택 결과는 점수와
-                랭킹에 바로 반영됩니다.
+                당신을 가장 힘들게 했던 에피소드 5가지를 등록해주세요. 이
+                기억들이 서로 맞붙으며, 첫 올타임 챔피언(All-Time Champion)이
+                탄생하게 됩니다.
               </p>
             </div>
           </div>
 
           <div className="px-4 pt-3.5">
-            <ActionButton onClick={() => setHasStarted(true)}>
-              직접 등록하기
-            </ActionButton>
-            <button
-              className="mt-3 h-11 w-full text-sm font-semibold text-[#b1b9c5] transition-colors hover:text-white"
-              onClick={fillSamplesAndStart}
-              type="button"
-            >
-              샘플 5개로 빠르게 시작
-            </button>
+            <ActionButton onClick={() => setHasStarted(true)}>시작하기</ActionButton>
             <MockHomeIndicator />
           </div>
         </section>
@@ -139,13 +118,7 @@ export function MockOnboarding() {
           <h1 className="text-lg font-semibold leading-[1.4] text-white">
             에피소드 등록
           </h1>
-          <button
-            className="text-xs font-semibold text-[#b1b9c5]"
-            onClick={fillOnboardingSamples}
-            type="button"
-          >
-            샘플 채우기
-          </button>
+          <span aria-hidden="true" className="size-6" />
         </header>
 
         <section className="flex-1 overflow-y-auto px-4 pb-6 pt-6">
@@ -192,32 +165,13 @@ export function MockOnboarding() {
                 value={activeDraft.content}
               />
 
-              <div className="flex flex-col gap-2">
-                <label
-                  className="text-sm font-medium leading-[1.4] text-white"
-                  htmlFor={`mock-onboarding-title-${activeIndex}`}
-                >
-                  제목
-                </label>
-                <TextInput
-                  id={`mock-onboarding-title-${activeIndex}`}
-                  maxLength={150}
-                  onChange={(event) => updateDraft("title", event.target.value)}
-                  placeholder="내용을 바탕으로 제목을 만들어보세요."
-                  trailingIcon={
-                    <button
-                      aria-label="제목 자동 생성"
-                      className="text-xs font-semibold text-white disabled:text-[#87919e]"
-                      disabled={!activeDraft.content.trim()}
-                      onClick={generateTitle}
-                      type="button"
-                    >
-                      자동 생성
-                    </button>
-                  }
-                  value={activeDraft.title}
-                />
-              </div>
+              <MockTitleField
+                canGenerate={Boolean(activeDraft.content.trim())}
+                id={`mock-onboarding-title-${activeIndex}`}
+                onChange={(value) => updateDraft("title", value)}
+                onGenerate={generateTitle}
+                value={activeDraft.title}
+              />
 
               <TextInput
                 id={`mock-onboarding-date-${activeIndex}`}
@@ -239,7 +193,9 @@ export function MockOnboarding() {
 
         <div className="px-4 pt-3.5">
           <ActionButton isActive={isCurrentReady} onClick={moveNext}>
-            {isLastEpisode ? "10개 리그전 시작" : "다음 에피소드"}
+            {isLastEpisode
+              ? "등록 완료하고 배치전 시작하기"
+              : "다음 에피소드 등록하기"}
           </ActionButton>
           <MockHomeIndicator />
         </div>

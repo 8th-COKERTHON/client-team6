@@ -11,8 +11,6 @@ import {
   getActiveSession,
   getCurrentMatch,
   getEpisode,
-  getMatchPhaseLabel,
-  getSessionTypeLabel,
   type MockEpisode,
   type MockMatch,
   type MockSession,
@@ -45,10 +43,8 @@ export function MockRing() {
       currentRound={match.round}
       episodeA={toRingEpisode(episodeA)}
       episodeB={toRingEpisode(episodeB)}
-      eventTitle={getSessionTypeLabel(session.type)}
       key={match.id}
       onConfirmWinner={confirmWinner}
-      phaseLabel={getMatchPhaseLabel(match.phase)}
       totalRounds={session.totalRounds}
     />
   );
@@ -66,17 +62,12 @@ function toRingEpisode(episode: MockEpisode): RingBattleEpisode {
 }
 
 function getActionLabel(session: MockSession, match: MockMatch) {
-  if (match.phase === "ANNUAL_TITLE") {
-    return "연간 타이틀전 완료";
+  if (
+    match.phase === "ANNUAL_TITLE" ||
+    (session.type !== "MONTHLY" && match.round === session.totalRounds)
+  ) {
+    return "선택 완료";
   }
 
-  if (session.type === "MONTHLY" && match.round === 9) {
-    return "월간 챔피언 결정";
-  }
-
-  if (match.round === session.totalRounds) {
-    return "결과 보기";
-  }
-
-  return "다음 매치";
+  return "다음";
 }

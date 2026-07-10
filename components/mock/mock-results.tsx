@@ -57,7 +57,7 @@ export function MockResults() {
               : "모든 판정이 완료되었습니다"}
           </h1>
           <p className="mt-2 text-sm font-medium text-[#b1b9c5]">
-            {session.matches.length}개 매치 결과가 로컬 랭킹에 반영됐습니다.
+            {session.matches.length}개 매치 결과가 랭킹에 반영됐습니다.
           </p>
         </div>
 

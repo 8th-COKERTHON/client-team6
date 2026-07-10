@@ -33,11 +33,8 @@ export function MockLoadingScreen() {
   return (
     <MockPageFrame>
       <div className="flex min-h-svh items-center justify-center px-4">
-        <div className="flex flex-col items-center gap-4" role="status">
-          <span className="size-8 animate-spin rounded-full border-[3px] border-[#363d48] border-t-[#ff0002]" />
-          <span className="text-sm font-medium text-[#b1b9c5]">
-            저장된 플로우를 불러오는 중
-          </span>
+        <div aria-label="화면 불러오는 중" role="status">
+          <span className="block size-8 animate-spin rounded-full border-[3px] border-[#363d48] border-t-[#ff0002]" />
         </div>
       </div>
     </MockPageFrame>
@@ -54,7 +51,7 @@ export function MockHeader({
   title?: string;
 }) {
   function confirmReset() {
-    if (onReset && window.confirm("Mock 진행 기록을 모두 초기화할까요?")) {
+    if (onReset && window.confirm("진행 기록을 모두 초기화할까요?")) {
       onReset();
     }
   }
@@ -71,7 +68,7 @@ export function MockHeader({
         </Link>
       ) : (
         <Link
-          aria-label="Mock 홈"
+          aria-label="홈"
           className="relative flex size-9 overflow-hidden rounded-[8px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff0002]"
           href="/mock/home"
         >
@@ -94,10 +91,10 @@ export function MockHeader({
 
       {onReset ? (
         <button
-          aria-label="Mock 데이터 초기화"
+          aria-label="진행 기록 초기화"
           className="flex size-9 items-center justify-end text-[#b1b9c5] transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff0002]"
           onClick={confirmReset}
-          title="Mock 데이터 초기화"
+          title="진행 기록 초기화"
           type="button"
         >
           <ResetIcon className="size-5" />

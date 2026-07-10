@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useMockApp } from "@/components/mock/mock-app-provider";
+import { MockTitleField } from "@/components/mock/mock-title-field";
 import {
   MockHeader,
   MockHomeIndicator,
@@ -14,7 +14,6 @@ import { TextInput } from "@/components/ui/text-input";
 import { formatDateForDisplay, suggestMockTitle } from "@/lib/mock-flow";
 
 export function MockEntry() {
-  const router = useRouter();
   const { createEpisode } = useMockApp();
   const [content, setContent] = useState("");
   const [date, setDate] = useState(() => formatDateForDisplay(new Date()));
@@ -53,19 +52,12 @@ export function MockEntry() {
                 에피소드 등록이 완료되었습니다.
               </h1>
               <p className="mt-2 max-w-[300px] text-sm font-medium leading-[1.6] text-[#b1b9c5]">
-                점수가 가장 가까운 기존 에피소드 5개와 배치 매치가 생성됐습니다.
+                기존 에피소드 5개와 데뷔 매치(Debut Match)를 진행해 보세요.
               </p>
             </div>
           </div>
           <div className="px-4 pt-3.5">
             <ActionButtonLink href="/mock/ring">바로 매치 시작</ActionButtonLink>
-            <button
-              className="mt-3 h-11 w-full text-sm font-semibold text-[#b1b9c5]"
-              onClick={() => router.replace("/mock/home")}
-              type="button"
-            >
-              나중에 하기
-            </button>
             <MockHomeIndicator />
           </div>
         </section>
@@ -93,31 +85,16 @@ export function MockEntry() {
               value={content}
             />
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-white" htmlFor="mock-entry-title">
-                제목
-              </label>
-              <TextInput
-                id="mock-entry-title"
-                maxLength={150}
-                onChange={(event) => {
-                  setTitle(event.target.value);
-                  setMessage("");
-                }}
-                placeholder="비워두면 내용으로 자동 생성됩니다."
-                trailingIcon={
-                  <button
-                    className="text-xs font-semibold text-white disabled:text-[#87919e]"
-                    disabled={!content.trim()}
-                    onClick={() => setTitle(suggestMockTitle(content))}
-                    type="button"
-                  >
-                    자동 생성
-                  </button>
-                }
-                value={title}
-              />
-            </div>
+            <MockTitleField
+              canGenerate={Boolean(content.trim())}
+              id="mock-entry-title"
+              onChange={(value) => {
+                setTitle(value);
+                setMessage("");
+              }}
+              onGenerate={() => setTitle(suggestMockTitle(content))}
+              value={title}
+            />
 
             <TextInput
               id="mock-entry-date"
@@ -141,7 +118,7 @@ export function MockEntry() {
 
         <div className="px-4 pt-3.5">
           <ActionButton isActive={canSubmit} onClick={submit}>
-            등록하고 5개 배치전 생성
+            등록
           </ActionButton>
           <MockHomeIndicator />
         </div>
