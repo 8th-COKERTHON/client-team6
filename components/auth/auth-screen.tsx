@@ -20,7 +20,7 @@ type MobileHomeIndicatorProps = {
 
 export function AuthTopBar({ title }: AuthTopBarProps) {
   return (
-    <header className="relative flex h-[calc(env(safe-area-inset-top)+54px)] items-end justify-between px-4 pb-[14.5px] pt-[env(safe-area-inset-top)]">
+    <header className="relative flex h-[54px] items-center justify-between px-4">
       <Link
         aria-label="뒤로가기"
         className="flex size-6 items-center justify-start text-white"
