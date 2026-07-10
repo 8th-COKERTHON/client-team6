@@ -1,7 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState } from "react";
+import {
+  AuthContent,
+  AuthTopBar,
+  MobileHomeIndicator,
+  PasswordHiddenIcon,
+} from "@/components/auth/auth-screen";
+import { useFormReady } from "@/components/auth/use-form-ready";
 import { ActionButton } from "@/components/ui/action-button";
 import { AuthInput } from "../components/auth-input";
 import { signin } from "./actions";
@@ -12,49 +18,49 @@ const initialState = {
 
 export default function SigninPage() {
   const [state, formAction, pending] = useActionState(signin, initialState);
+  const { formRef, isReady, syncFormReady } = useFormReady();
 
   return (
     <form
       action={formAction}
-      className="space-y-5 rounded-lg border border-[#292e38] bg-[#171c23] p-6 shadow-sm"
+      className="flex min-h-svh flex-col bg-[#12161b] text-white"
+      onInput={syncFormReady}
+      ref={formRef}
     >
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-white">
-          Sign in
-        </h1>
-      </div>
+      <AuthTopBar title="로그인" />
 
-      <AuthInput
-        label="Email"
-        name="email"
-        type="email"
-        autoComplete="email"
-        required
-      />
-      <AuthInput
-        label="Password"
-        name="password"
-        type="password"
-        autoComplete="current-password"
-        required
-      />
+      <AuthContent>
+        <div className="space-y-8">
+          <AuthInput
+            autoComplete="email"
+            label="이메일"
+            name="email"
+            placeholder="이메일 주소를 입력해 주세요."
+            required
+            type="email"
+          />
+          <AuthInput
+            autoComplete="current-password"
+            label="비밀번호"
+            name="password"
+            placeholder="비밀번호를 입력해 주세요."
+            required
+            trailingIcon={<PasswordHiddenIcon />}
+            type="password"
+          />
+          <ActionButton disabled={pending} isActive={isReady} type="submit">
+            {pending ? "로그인 중..." : "로그인"}
+          </ActionButton>
+        </div>
 
-      <ActionButton disabled={pending} type="submit">
-        {pending ? "Signing in..." : "Sign in"}
-      </ActionButton>
+        {state.message ? (
+          <p className="mt-4 text-sm text-[#ff0002]" role="alert">
+            {state.message}
+          </p>
+        ) : null}
+      </AuthContent>
 
-      {state.message ? (
-        <p className="text-sm text-[#ff0002]" role="alert">
-          {state.message}
-        </p>
-      ) : null}
-
-      <p className="text-center text-sm text-[#b1b9c5]">
-        Need an account?{" "}
-        <Link className="font-medium text-white" href="/signup">
-          Sign up
-        </Link>
-      </p>
+      <MobileHomeIndicator className="mt-auto" />
     </form>
   );
 }
