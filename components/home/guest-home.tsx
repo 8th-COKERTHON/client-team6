@@ -35,7 +35,14 @@ function GuestHomeBackground() {
 function GuestHomeBrand() {
   return (
     <div className="relative z-10 flex flex-col items-center pt-[calc(env(safe-area-inset-top)+clamp(5rem,15svh,8.5rem))] text-center">
-      <h1 className="text-[4rem] font-black leading-tight">MME</h1>
+      <Image
+        alt="MME"
+        className="size-24 rounded-[22px] object-cover"
+        height={96}
+        priority
+        src="/icons/mme-icon-192.png"
+        width={96}
+      />
       <p className="mt-2 text-lg font-medium">My Misery Entertainment</p>
     </div>
   );

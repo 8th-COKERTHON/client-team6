@@ -72,10 +72,16 @@ function HomeHeader() {
     <header className="relative z-10 flex h-[calc(max(env(safe-area-inset-top),44px)+54px)] items-end justify-between px-4 pb-[9px]">
       <Link
         aria-label="홈"
-        className="flex size-9 items-center justify-center rounded-[8.4px] text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ff0002]"
+        className="relative flex size-9 items-center justify-center overflow-hidden rounded-[8.4px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ff0002]"
         href="/"
       >
-        <MmeLogoMark />
+        <Image
+          alt="MME"
+          className="h-full w-full object-cover"
+          height={36}
+          src="/icons/mme-icon-192.png"
+          width={36}
+        />
       </Link>
       <div className="flex items-center gap-6 text-[#b1b9c5]">
         <button
@@ -177,22 +183,6 @@ function UpcomingMatchCard({
         D-{remainingDays}
       </span>
     </Link>
-  );
-}
-
-function MmeLogoMark() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="h-6 w-[26px]"
-      fill="none"
-      viewBox="0 0 26 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path d="M2 19 7.3 5.4 12.2 17.6 17.2 5.4 24 19" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
-      <path d="M5.6 13.8h14.8" stroke="#ff0002" strokeLinecap="round" strokeWidth="1.8" />
-      <path d="M8.7 20.5 13 11.5l4.3 9" stroke="#ff0002" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.4" />
-    </svg>
   );
 }
 
