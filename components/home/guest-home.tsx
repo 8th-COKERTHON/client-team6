@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { ActionButtonLink } from "@/components/ui/action-button";
 
 export function GuestHome() {
   return (
@@ -43,12 +44,7 @@ function GuestHomeBrand() {
 function GuestHomeActions() {
   return (
     <div className="absolute inset-x-[clamp(1rem,4vw,1.5rem)] bottom-[calc(env(safe-area-inset-bottom)+clamp(3.75rem,9svh,4.75rem))] z-10 space-y-3">
-      <Link
-        className="flex h-[clamp(3rem,7svh,3.25rem)] w-full items-center justify-center rounded-2xl bg-[#ff0002] px-4 text-lg font-semibold text-white transition-colors hover:bg-[#d90002]"
-        href="/signin"
-      >
-        로그인
-      </Link>
+      <ActionButtonLink href="/signin">로그인</ActionButtonLink>
       <Link
         className="flex h-[clamp(3rem,7svh,3.25rem)] w-full items-center justify-center rounded-2xl border border-white px-4 text-lg font-semibold text-white transition-colors hover:bg-white/10"
         href="/signup"

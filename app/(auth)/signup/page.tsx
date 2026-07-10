@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
+import { ActionButton } from "@/components/ui/action-button";
 import { AuthInput } from "../components/auth-input";
 import { signup } from "./actions";
 
@@ -45,13 +46,9 @@ export default function SignupPage() {
         required
       />
 
-      <button
-        className="h-11 w-full rounded-md bg-zinc-950 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
-        disabled={pending}
-        type="submit"
-      >
+      <ActionButton disabled={pending} type="submit">
         {pending ? "Signing up..." : "Sign up"}
-      </button>
+      </ActionButton>
 
       {state.message ? (
         <p className="text-sm text-red-600" role="alert">
