@@ -1,6 +1,9 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
-import { BottomNavigation } from "@/components/bottom-navigation";
+import { useMemo, useState, type ReactNode } from "react";
+import { ActionButton, ActionButtonLink } from "@/components/ui/action-button";
 
 type ActiveEvent = {
   displayDate?: string | null;
@@ -15,18 +18,18 @@ type ActiveEvent = {
 };
 
 type AvailableEpisode = {
-  episodeDate?: string | null;
-  episodeId?: number | null;
-  status?: string | null;
-  title?: string | null;
-};
-
-type EpisodeCard = {
   content?: string | null;
   episodeDate?: string | null;
   episodeId?: number | null;
+  losses?: number | null;
+  score?: number | null;
+  status?: string | null;
   title?: string | null;
+  titleScore?: number | null;
+  wins?: number | null;
 };
+
+type EpisodeCard = AvailableEpisode;
 
 type ActiveMatch = {
   completedRounds?: number | null;
@@ -53,398 +56,494 @@ type RingScreenProps = {
   errorMessage?: string;
 };
 
+type BattleSide = "a" | "b";
+
+type BattleRound = {
+  episodeA: EpisodeCard;
+  episodeB: EpisodeCard;
+};
+
+type RingView = "empty" | "list" | "battle" | "complete";
+
+const SAMPLE_EPISODES = [
+  {
+    content:
+      "최종 면접 결과를 기다렸지만 아쉽게 탈락했다. 오랫동안 준비했던 만큼 허탈함과 자신감이 크게 흔들렸다.",
+    episodeDate: "2026-07-10",
+    episodeId: 1,
+    losses: 2,
+    score: 1000,
+    title: "취업 최종 탈락",
+    wins: 5,
+  },
+  {
+    content:
+      "좋은 분위기라고 생각했던 소개팅 이후 갑자기 연락이 끊겼다. 이유를 알 수 없어 더 오래 신경 쓰였다.",
+    episodeDate: "2026-07-10",
+    episodeId: 2,
+    losses: 2,
+    score: 1000,
+    title: "세 번째 소개팅 연락 두절",
+    wins: 5,
+  },
+] satisfies EpisodeCard[];
+
 export function RingScreen({ data, errorMessage }: RingScreenProps) {
-  const activeEvents = data?.activeEvents ?? [];
-  const availableEpisodes = data?.availableEpisodes ?? [];
+  const activeEvents = useMemo(() => data?.activeEvents ?? [], [data?.activeEvents]);
+  const availableEpisodes = useMemo(
+    () => data?.availableEpisodes ?? [],
+    [data?.availableEpisodes],
+  );
   const activeMatch = data?.activeMatch ?? null;
+  const initialView = getInitialView(activeEvents, activeMatch);
+  const [view, setView] = useState<RingView>(initialView);
+  const [selectedEventIndex, setSelectedEventIndex] = useState(0);
+  const [roundIndex, setRoundIndex] = useState(0);
+  const [selectedSide, setSelectedSide] = useState<BattleSide | null>(null);
+  const [isDetailMode, setIsDetailMode] = useState(false);
+  const selectedEvent = activeEvents[selectedEventIndex] ?? activeEvents[0] ?? null;
+  const rounds = useMemo(
+    () =>
+      createBattleRounds({
+        activeMatch,
+        availableEpisodes,
+        selectedEvent,
+      }),
+    [activeMatch, availableEpisodes, selectedEvent],
+  );
+  const currentRound = rounds[roundIndex] ?? rounds[0];
+  const completedScore = getEpisodeScore(
+    selectedSide === "b" ? currentRound?.episodeB : currentRound?.episodeA,
+  );
+
+  function goToEventList() {
+    resetBattle();
+    setView(activeEvents.length > 0 ? "list" : "empty");
+  }
+
+  function startEvent(index: number) {
+    setSelectedEventIndex(index);
+    resetBattle();
+    setView("battle");
+  }
+
+  function selectWinner(side: BattleSide) {
+    setSelectedSide(side);
+  }
+
+  function moveNextRound() {
+    if (!selectedSide) {
+      return;
+    }
+
+    const nextRoundIndex = roundIndex + 1;
+
+    if (nextRoundIndex >= rounds.length) {
+      setView("complete");
+      return;
+    }
+
+    setRoundIndex(nextRoundIndex);
+    setSelectedSide(null);
+    setIsDetailMode(false);
+  }
+
+  function resetBattle() {
+    setRoundIndex(0);
+    setSelectedSide(null);
+    setIsDetailMode(false);
+  }
 
   return (
     <main className="min-h-svh bg-[#12161b] text-white">
       <div className="relative mx-auto min-h-svh w-full max-w-[375px] overflow-hidden bg-[#12161b]">
-        <RingArenaBackground />
-        <RingHeader />
+        <RingArenaBackground isSubtle={view === "battle"} />
+        <RingHeader
+          onBack={view === "battle" || view === "complete" ? goToEventList : undefined}
+        />
 
-        <section className="relative z-10 px-[clamp(1rem,4.8vw,1.125rem)] pt-[calc(env(safe-area-inset-top)+7.625rem)] pb-[calc(8.5rem+env(safe-area-inset-bottom))]">
-          {errorMessage ? (
-            <RingNotice title="링 정보를 불러오지 못했습니다" body={errorMessage} />
-          ) : (
-            <div className="flex flex-col gap-7">
-              <RingOverview
-                activeEvents={activeEvents}
-                activeMatch={activeMatch}
-                availableEpisodes={availableEpisodes}
-              />
-              <CurrentSessionSection match={activeMatch} />
-              <EventBoardSection events={activeEvents} />
-              <EpisodePoolSection episodes={availableEpisodes} />
-            </div>
-          )}
-        </section>
-
-        <BottomNavigation />
+        {errorMessage ? (
+          <RingErrorState message={errorMessage} />
+        ) : view === "empty" ? (
+          <EmptyRingState />
+        ) : view === "list" ? (
+          <EventListScreen events={activeEvents} onSelectEvent={startEvent} />
+        ) : view === "complete" ? (
+          <CompleteScreen score={completedScore} />
+        ) : currentRound ? (
+          <BattleScreen
+            currentRound={currentRound}
+            event={selectedEvent}
+            isDetailMode={isDetailMode}
+            onMoveNext={moveNextRound}
+            onSelectWinner={selectWinner}
+            onToggleDetail={() => setIsDetailMode((value) => !value)}
+            roundIndex={roundIndex}
+            selectedSide={selectedSide}
+            totalRounds={rounds.length}
+          />
+        ) : (
+          <EmptyRingState />
+        )}
       </div>
     </main>
   );
 }
 
-function RingOverview({
-  activeEvents,
-  activeMatch,
-  availableEpisodes,
+function EmptyRingState() {
+  return (
+    <>
+      <section className="relative z-10 flex min-h-svh items-start justify-center px-4 pt-[calc(max(env(safe-area-inset-top),44px)+105px)]">
+        <h1 className="w-full text-center text-xl font-semibold leading-[1.4] text-white">
+          현재 진행할 수 있는 매치가 없습니다.
+        </h1>
+      </section>
+      <BottomHomeIndicator />
+    </>
+  );
+}
+
+function EventListScreen({
+  events,
+  onSelectEvent,
 }: {
-  activeEvents: ActiveEvent[];
-  activeMatch: ActiveMatch | null;
-  availableEpisodes: AvailableEpisode[];
+  events: ActiveEvent[];
+  onSelectEvent: (index: number) => void;
 }) {
   return (
-    <section>
-      <p className="text-xs font-semibold uppercase leading-[1.4] text-[#ff0002]">
-        Ring
-      </p>
-      <h1 className="mt-1 text-[1.625rem] font-bold leading-[1.2] text-white">
-        매칭 링
-      </h1>
-      <div className="mt-5 grid grid-cols-3 gap-2">
-        <RingMetric label="세션" value={activeMatch ? "1" : "0"} />
-        <RingMetric label="이벤트" value={String(activeEvents.length)} />
-        <RingMetric label="후보" value={String(availableEpisodes.length)} />
-      </div>
-    </section>
-  );
-}
-
-function RingMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0 rounded-2xl border border-[#363d48] bg-[#1b1e27]/85 px-3 py-3">
-      <p className="text-[11px] font-semibold leading-[1.4] text-[#87919e]">
-        {label}
-      </p>
-      <p className="mt-1 text-xl font-bold leading-[1.2] text-[#f0f0f2]">
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function CurrentSessionSection({ match }: { match: ActiveMatch | null }) {
-  return (
-    <section>
-      <SectionHeader
-        eyebrow="ring_sessions"
-        title="진행 중인 세션"
-        trailing={match ? formatRoundLabel(match) : undefined}
-      />
-      {match ? (
-        <article className="mt-4 rounded-[20px] border border-[#ff0002]/30 bg-[#292e38] p-5 shadow-[0_12px_40px_rgba(0,0,0,0.22)]">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold leading-[1.4] text-[#b1b9c5]">
-                {formatEventType(match.eventType)} · Session #
-                {match.sessionId ?? "-"}
-              </p>
-              <h2 className="mt-1 truncate text-lg font-bold leading-[1.3] text-white">
-                {match.eventTitle || "현재 대결"}
-              </h2>
-            </div>
-            <StatusPill status={match.status} />
-          </div>
-
-          <MatchProgress match={match} />
-
-          <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-stretch gap-3">
-            <EpisodeBattleColumn episode={match.episodeA} label="A" />
-            <div className="flex items-center justify-center text-sm font-bold leading-[1.4] text-[#ff0002]">
-              VS
-            </div>
-            <EpisodeBattleColumn episode={match.episodeB} label="B" />
-          </div>
-        </article>
-      ) : (
-        <RingNotice
-          title="진행 중인 세션이 없습니다"
-          body="대결을 시작하면 현재 라운드와 대결 카드가 이곳에 표시됩니다."
-        />
-      )}
-    </section>
-  );
-}
-
-function MatchProgress({ match }: { match: ActiveMatch }) {
-  const totalRounds = Math.max(match.totalRounds ?? 1, 1);
-  const completedRounds = getCompletedRounds(match);
-  const progress = Math.min(Math.max(completedRounds / totalRounds, 0), 1);
-
-  return (
-    <div className="mt-5">
-      <div className="flex items-center justify-between text-xs font-semibold leading-[1.4] text-[#b1b9c5]">
-        <span>라운드 진행</span>
-        <span>
-          {completedRounds}/{totalRounds}
-        </span>
-      </div>
-      <div
-        aria-label="라운드 진행률"
-        aria-valuemax={totalRounds}
-        aria-valuemin={0}
-        aria-valuenow={completedRounds}
-        className="mt-2 h-2 overflow-hidden rounded-full bg-[#12161b]"
-        role="progressbar"
-      >
-        <div
-          className="h-full rounded-full bg-[#ff0002]"
-          style={{ width: `${progress * 100}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function EpisodeBattleColumn({
-  episode,
-  label,
-}: {
-  episode?: EpisodeCard | null;
-  label: string;
-}) {
-  return (
-    <div className="min-w-0 border-t border-[#4a5360] pt-3">
-      <p className="text-xs font-semibold leading-[1.4] text-[#ff0002]">
-        episode_{label.toLowerCase()}
-      </p>
-      <h3 className="mt-2 line-clamp-2 min-h-[2.8em] text-sm font-bold leading-[1.4] text-[#f0f0f2]">
-        {episode?.title || "제목 없음"}
-      </h3>
-      <p className="mt-2 text-xs font-medium leading-[1.4] text-[#b1b9c5]">
-        {formatDateLabel(episode?.episodeDate)}
-      </p>
-      {episode?.content ? (
-        <p className="mt-2 line-clamp-2 text-xs font-medium leading-[1.45] text-[#87919e]">
-          {episode.content}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-function EventBoardSection({ events }: { events: ActiveEvent[] }) {
-  return (
-    <section>
-      <SectionHeader eyebrow="matching_events" title="대결 이벤트" />
-      <div className="mt-4 flex flex-col gap-3">
-        {events.length > 0 ? (
-          events.map((event, index) => (
-            <EventCard event={event} index={index} key={getEventKey(event, index)} />
-          ))
-        ) : (
-          <RingNotice
-            title="진행 가능한 이벤트가 없습니다"
-            body="새로운 Weekly Show 또는 Monthly Royal Rumble이 열리면 이곳에 표시됩니다."
-          />
-        )}
-      </div>
-    </section>
-  );
-}
-
-function EventCard({ event, index }: { event: ActiveEvent; index: number }) {
-  return (
-    <Link
-      className={[
-        "group block rounded-[20px] border px-5 py-4 text-left transition-transform",
-        "hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2",
-        "focus-visible:outline-offset-4 focus-visible:outline-[#ff0002]",
-        index === 0
-          ? "border-[#ff0002]/35 bg-[#292e38]"
-          : "border-[#363d48] bg-[linear-gradient(102deg,#292e38_0%,rgba(41,46,56,0.68)_100%)]",
-      ].join(" ")}
-      href={`/ring?eventId=${event.eventId ?? index}`}
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="text-xs font-semibold leading-[1.4] text-[#ff0002]">
-            {formatEventType(event.type)}
-          </p>
-          <h3 className="mt-1 truncate text-base font-bold leading-[1.35] text-[#f0f0f2]">
-            {event.title || "이름 없는 이벤트"}
-          </h3>
+    <>
+      <section className="relative z-10 px-[18px] pt-[calc(max(env(safe-area-inset-top),44px)+78px)] pb-[calc(3rem+env(safe-area-inset-bottom))]">
+        <h1 className="text-base font-semibold leading-[1.4] text-white">
+          진행할 수 있는 매치
+        </h1>
+        <div className="mt-4 flex flex-col gap-3">
+          {events.map((event, index) => (
+            <button
+              className={[
+                "group flex min-h-[74px] w-full items-center justify-between rounded-2xl",
+                "px-5 py-3.5 text-left transition-transform hover:-translate-y-0.5",
+                "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4",
+                "focus-visible:outline-[#ff0002]",
+                index === 0
+                  ? "bg-[#292e38]"
+                  : "bg-[linear-gradient(102deg,#292e38_0%,rgba(41,46,56,0.6)_100%)]",
+              ].join(" ")}
+              key={getEventKey(event, index)}
+              onClick={() => onSelectEvent(index)}
+              type="button"
+            >
+              <span className="flex min-w-0 items-center gap-3">
+                <span
+                  aria-hidden="true"
+                  className={[
+                    "mt-[3px] size-2 shrink-0 self-start rounded-full",
+                    index === 0 ? "bg-[#ff0002]" : "bg-[#87919e]",
+                  ].join(" ")}
+                />
+                <span className="min-w-0">
+                  <span className="block truncate text-base font-semibold leading-[1.4] text-[#f0f0f2]">
+                    {event.title || "이름 없는 매치"}
+                  </span>
+                  <span className="mt-1.5 flex min-w-0 items-center gap-2 text-[13px] font-medium leading-[1.4] text-[#b1b9c5]">
+                    <span className="shrink-0">{formatEventDate(event)}</span>
+                    <span aria-hidden="true" className="shrink-0">
+                      |
+                    </span>
+                    <span className="truncate">{formatEventType(event.type)}</span>
+                  </span>
+                </span>
+              </span>
+              <ChevronRightIcon className="ml-4 size-6 shrink-0 text-[#87919e] transition-colors group-hover:text-white" />
+            </button>
+          ))}
         </div>
-        <StatusPill status={event.status} />
-      </div>
-      <div className="mt-4 grid grid-cols-2 gap-2 text-xs font-semibold leading-[1.4] text-[#b1b9c5]">
-        <EventMeta label="기간" value={formatEventDate(event)} />
-        <EventMeta label="보상" value={formatReward(event.scoreReward)} />
-        <EventMeta label="라운드" value={formatRoundCount(event.roundCount)} />
-        <EventMeta label="이벤트 ID" value={String(event.eventId ?? "-")} />
-      </div>
-    </Link>
+      </section>
+      <BottomHomeIndicator />
+    </>
   );
 }
 
-function EventMeta({ label, value }: { label: string; value: string }) {
+function BattleScreen({
+  currentRound,
+  event,
+  isDetailMode,
+  onMoveNext,
+  onSelectWinner,
+  onToggleDetail,
+  roundIndex,
+  selectedSide,
+  totalRounds,
+}: {
+  currentRound: BattleRound;
+  event: ActiveEvent | null;
+  isDetailMode: boolean;
+  onMoveNext: () => void;
+  onSelectWinner: (side: BattleSide) => void;
+  onToggleDetail: () => void;
+  roundIndex: number;
+  selectedSide: BattleSide | null;
+  totalRounds: number;
+}) {
   return (
-    <div className="min-w-0">
-      <p className="text-[11px] font-semibold leading-[1.4] text-[#87919e]">
-        {label}
-      </p>
-      <p className="mt-0.5 truncate text-xs font-semibold leading-[1.4] text-[#f0f0f2]">
-        {value}
-      </p>
-    </div>
-  );
-}
+    <>
+      <section className="relative z-10 px-4 pt-[calc(max(env(safe-area-inset-top),44px)+78px)] pb-[calc(7.75rem+env(safe-area-inset-bottom))]">
+        <div className="max-w-[285px]">
+          <h1 className="text-xl font-semibold leading-[1.4] text-white">
+            이번 라운드, 더 힘들었던 에피소드에 판정을 내려주세요
+          </h1>
+          <p className="mt-2 text-sm font-medium leading-[1.4] text-[#8b95a1]">
+            카드를 눌러 승자를 선택하세요
+          </p>
+        </div>
 
-function EpisodePoolSection({ episodes }: { episodes: AvailableEpisode[] }) {
-  return (
-    <section>
-      <SectionHeader
-        eyebrow="episodes"
-        title="매칭 후보 에피소드"
-        trailing={`${episodes.length}개`}
-      />
-      <div className="mt-4 flex flex-col gap-3">
-        {episodes.length > 0 ? (
-          episodes.map((episode, index) => (
-            <EpisodePoolItem
-              episode={episode}
-              index={index}
-              key={episode.episodeId ?? `${episode.title}-${index}`}
+        <div className="mt-[54px]">
+          <RoundCounter current={roundIndex + 1} total={totalRounds} />
+          <div className="mt-4 grid grid-cols-[1fr_1fr] gap-[11px]">
+            <BattleCard
+              episode={currentRound.episodeA}
+              index={1}
+              isDetailMode={isDetailMode}
+              isInactive={selectedSide !== null && selectedSide !== "a"}
+              isSelected={selectedSide === "a"}
+              onSelect={() => onSelectWinner("a")}
+              onToggleDetail={onToggleDetail}
             />
-          ))
-        ) : (
-          <RingNotice
-            title="매칭 가능한 에피소드가 없습니다"
-            body="에피소드를 등록하면 링에서 대결 후보로 사용할 수 있습니다."
-            actionHref="/episodes/new"
-            actionLabel="등록"
-          />
-        )}
-      </div>
-    </section>
+            <BattleCard
+              episode={currentRound.episodeB}
+              index={2}
+              isDetailMode={isDetailMode}
+              isInactive={selectedSide !== null && selectedSide !== "b"}
+              isSelected={selectedSide === "b"}
+              onSelect={() => onSelectWinner("b")}
+              onToggleDetail={onToggleDetail}
+            />
+          </div>
+        </div>
+
+        {event?.title ? (
+          <p className="sr-only">선택된 매치: {event.title}</p>
+        ) : null}
+      </section>
+
+      <BottomActionArea>
+        <ActionButton isActive={Boolean(selectedSide)} onClick={onMoveNext}>
+          다음
+        </ActionButton>
+      </BottomActionArea>
+    </>
   );
 }
 
-function EpisodePoolItem({
+function BattleCard({
   episode,
   index,
+  isDetailMode,
+  isInactive,
+  isSelected,
+  onSelect,
+  onToggleDetail,
 }: {
-  episode: AvailableEpisode;
+  episode: EpisodeCard;
   index: number;
+  isDetailMode: boolean;
+  isInactive: boolean;
+  isSelected: boolean;
+  onSelect: () => void;
+  onToggleDetail: () => void;
 }) {
   return (
-    <article className="grid min-h-[4.5rem] grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl border border-[#363d48] bg-[#1b1e27]/88 px-4 py-3">
-      <span className="flex size-9 items-center justify-center rounded-full bg-[#292e38] text-sm font-bold leading-none text-[#ff0002]">
-        {index + 1}
-      </span>
-      <span className="min-w-0">
-        <span className="block truncate text-base font-bold leading-[1.35] text-[#f0f0f2]">
+    <article
+      className={[
+        "flex h-[305px] min-w-0 flex-col justify-between overflow-hidden rounded-[20px]",
+        "px-3 py-4 text-left transition-all",
+        isSelected
+          ? "border-[1.5px] border-[#ff0002] bg-[#ff0002]/[0.08]"
+          : "border border-[#363d48] bg-[#292e38]/70",
+        isInactive ? "opacity-50" : "opacity-100",
+      ].join(" ")}
+    >
+      <button
+        className="flex min-h-0 flex-1 flex-col items-start text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ff0002]"
+        onClick={onSelect}
+        type="button"
+      >
+        <span
+          className={[
+            "flex size-[30px] items-center justify-center rounded-full px-3 py-1",
+            "text-xs font-semibold leading-[1.4] text-white",
+            isSelected ? "bg-[#ff0002]" : "bg-[#363d48]",
+          ].join(" ")}
+        >
+          {index}
+        </span>
+        <span className="mt-4 block w-full text-lg font-semibold leading-[1.4] text-white">
           {episode.title || "제목 없음"}
         </span>
-        <span className="mt-1 block text-[13px] font-medium leading-[1.4] text-[#b1b9c5]">
+        {isDetailMode ? (
+          <span className="mt-2 line-clamp-5 block w-full text-[13px] font-medium leading-[1.6] text-white">
+            {episode.content || "등록된 상세 내용이 없습니다."}
+          </span>
+        ) : null}
+        <span className="mt-2 block w-full text-[13px] font-medium leading-[1.4] text-[#b1b9c5]">
           {formatDateLabel(episode.episodeDate)}
         </span>
-      </span>
-      <span className="shrink-0 rounded-full bg-[#363d48] px-3 py-1 text-xs font-semibold leading-[1.4] text-white">
-        {formatStatusLabel(episode.status, "AVAILABLE")}
-      </span>
+      </button>
+
+      <div className="mt-4">
+        {!isDetailMode ? (
+          <p className="mb-4 text-[13px] font-medium leading-[1.4] text-[#b1b9c5]">
+            {formatEpisodeRecord(episode)} | {getEpisodeScore(episode)}점
+          </p>
+        ) : null}
+        <button
+          className={[
+            "flex h-[34px] w-full items-center justify-center rounded-[10px]",
+            "border px-2 text-[13px] font-medium leading-[1.4]",
+            "text-white transition-colors focus-visible:outline focus-visible:outline-2",
+            "focus-visible:outline-offset-2 focus-visible:outline-[#ff0002]",
+            isSelected ? "border-[#ff0002]/60" : "border-[#87919e]",
+          ].join(" ")}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleDetail();
+          }}
+          type="button"
+        >
+          {isDetailMode ? "개요 보기" : "상세보기"}
+        </button>
+      </div>
     </article>
   );
 }
 
-function SectionHeader({
-  eyebrow,
-  title,
-  trailing,
-}: {
-  eyebrow: string;
-  title: string;
-  trailing?: string;
-}) {
+function CompleteScreen({ score }: { score: number }) {
   return (
-    <div className="flex items-end justify-between gap-4">
-      <div className="min-w-0">
-        <p className="text-[11px] font-semibold uppercase leading-[1.4] text-[#87919e]">
-          {eyebrow}
-        </p>
-        <h2 className="mt-1 text-base font-bold leading-[1.35] text-white">
-          {title}
-        </h2>
-      </div>
-      {trailing ? (
-        <span className="shrink-0 rounded-full bg-[#363d48] px-3 py-1 text-xs font-semibold leading-[1.4] text-white">
-          {trailing}
-        </span>
-      ) : null}
+    <>
+      <section className="relative z-10 flex min-h-svh flex-col items-center px-4 pt-[calc(max(env(safe-area-inset-top),44px)+211px)] pb-[calc(7.75rem+env(safe-area-inset-bottom))]">
+        <div className="flex size-[120px] items-center justify-center rounded-full bg-[#ff0002]">
+          <CheckIcon className="size-14 text-white" />
+        </div>
+        <h1 className="mt-0 text-center text-xl font-semibold leading-[1.4] text-white">
+          배치전이 완료되었습니다.
+        </h1>
+        <div className="mt-10 flex w-full flex-col gap-3">
+          <ResultRow label="오늘의 사건 점수" value={`${score}점`} />
+          <ResultRow label="순위" value="0등" />
+        </div>
+      </section>
+
+      <BottomActionArea>
+        <ActionButtonLink href="/ranking">랭킹 보러가기</ActionButtonLink>
+      </BottomActionArea>
+    </>
+  );
+}
+
+function RingErrorState({ message }: { message: string }) {
+  return (
+    <>
+      <section className="relative z-10 px-4 pt-[calc(max(env(safe-area-inset-top),44px)+105px)]">
+        <div className="rounded-[20px] border border-[#87919e]/30 bg-[#292e38]/80 p-5">
+          <h1 className="text-base font-semibold leading-[1.4] text-[#f0f0f2]">
+            링 정보를 불러오지 못했습니다
+          </h1>
+          <p className="mt-2 text-sm font-medium leading-[1.4] text-[#b1b9c5]">
+            {message}
+          </p>
+        </div>
+      </section>
+      <BottomHomeIndicator />
+    </>
+  );
+}
+
+function ResultRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex h-[50px] items-center justify-between rounded-xl bg-[#292e38] px-5 py-3.5">
+      <span className="text-base font-semibold leading-[1.4] text-[#f0f0f2]">
+        {label}
+      </span>
+      <span className="text-base font-semibold leading-[1.4] text-[#f0f0f2]">
+        {value}
+      </span>
     </div>
   );
 }
 
-function StatusPill({ status }: { status?: string | null }) {
-  const normalizedStatus = status?.trim();
-
+function RoundCounter({ current, total }: { current: number; total: number }) {
   return (
-    <span className="shrink-0 rounded-full bg-[#12161b] px-3 py-1 text-xs font-semibold leading-[1.4] text-[#f0f0f2] ring-1 ring-[#4a5360]">
-      {formatStatusLabel(normalizedStatus, "IN_PROGRESS")}
-    </span>
-  );
-}
-
-function RingNotice({
-  actionHref,
-  actionLabel,
-  body,
-  title,
-}: {
-  actionHref?: string;
-  actionLabel?: string;
-  body: string;
-  title: string;
-}) {
-  return (
-    <div className="mt-4 rounded-[20px] border border-[#87919e]/30 bg-[#292e38]/80 p-5">
-      <h2 className="text-base font-bold leading-[1.35] text-[#f0f0f2]">
-        {title}
-      </h2>
-      <p className="mt-2 text-sm font-medium leading-[1.45] text-[#b1b9c5]">
-        {body}
-      </p>
-      {actionHref && actionLabel ? (
-        <Link
-          className="mt-4 inline-flex h-10 items-center justify-center rounded-full bg-[#ff0002] px-5 text-sm font-semibold leading-[1.4] text-white transition-colors hover:bg-[#e00002] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff0002]"
-          href={actionHref}
-        >
-          {actionLabel}
-        </Link>
-      ) : null}
+    <div className="flex justify-end px-1 text-sm leading-[1.4]">
+      <span className="font-semibold text-[#ff0002]">{current}</span>
+      <span className="font-normal text-[#b1b9c5]">/</span>
+      <span className="font-normal text-[#b1b9c5]">{total}</span>
     </div>
   );
 }
 
-function RingArenaBackground() {
+function BottomActionArea({ children }: { children: ReactNode }) {
   return (
-    <div className="absolute inset-x-1/2 bottom-[-17svh] h-[min(58.375rem,115svh)] w-[min(32.5625rem,139vw)] -translate-x-1/2">
+    <div className="absolute inset-x-0 bottom-0 z-20 flex flex-col items-center px-4 pt-3">
+      <div className="w-full max-w-[343px]">{children}</div>
+      <HomeIndicator />
+    </div>
+  );
+}
+
+function BottomHomeIndicator() {
+  return (
+    <div className="absolute inset-x-0 bottom-0 z-20">
+      <HomeIndicator />
+    </div>
+  );
+}
+
+function HomeIndicator() {
+  return (
+    <div className="flex h-[calc(34px+env(safe-area-inset-bottom))] w-full items-end justify-center pb-[max(8px,env(safe-area-inset-bottom))]">
+      <span aria-hidden="true" className="h-[5px] w-[134px] rounded-full bg-white/85" />
+    </div>
+  );
+}
+
+function RingArenaBackground({ isSubtle = false }: { isSubtle?: boolean }) {
+  return (
+    <div className="absolute inset-x-1/2 bottom-[-17.375svh] h-[clamp(50rem,115svh,58.375rem)] w-[clamp(28rem,139vw,32.5625rem)] -translate-x-1/2">
       <Image
         alt=""
-        className="absolute inset-0 h-full w-full object-cover opacity-42"
+        className={[
+          "absolute inset-0 h-full w-full object-cover",
+          isSubtle ? "opacity-25" : "opacity-50",
+        ].join(" ")}
         fill
         priority
         sizes="(max-width: 375px) 139vw, 32.5625rem"
         src="/images/auth-arena-background.png"
       />
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,#12161b_15.383%,rgba(18,22,27,0)_61.558%,#12161b_82.869%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,#12161b_15.38%,rgba(18,22,27,0)_61.56%,#12161b_82.87%)]" />
     </div>
   );
 }
 
-function RingHeader() {
+function RingHeader({ onBack }: { onBack?: () => void }) {
+  const className =
+    "flex size-6 items-center justify-center text-white transition-colors hover:text-[#ff0002] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ff0002]";
+
   return (
-    <header className="absolute inset-x-0 top-0 z-10 flex h-[calc(env(safe-area-inset-top)+6.125rem)] items-end justify-between px-4 pb-[1.125rem]">
-      <Link
-        aria-label="이전 화면으로 이동"
-        className="flex size-6 items-center justify-center text-white transition-colors hover:text-[#ff0002] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ff0002]"
-        href="/"
-      >
-        <BackIcon />
-      </Link>
+    <header className="absolute inset-x-0 top-0 z-20 flex h-[calc(max(env(safe-area-inset-top),44px)+54px)] items-end justify-between px-4 pb-[15px]">
+      {onBack ? (
+        <button
+          aria-label="이전 화면으로 이동"
+          className={className}
+          onClick={onBack}
+          type="button"
+        >
+          <BackIcon />
+        </button>
+      ) : (
+        <Link aria-label="이전 화면으로 이동" className={className} href="/">
+          <BackIcon />
+        </Link>
+      )}
       <span aria-hidden="true" className="size-6" />
     </header>
   );
@@ -464,6 +563,107 @@ function BackIcon() {
   );
 }
 
+function ChevronRightIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="m9 6 6 6-6 6"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
+}
+
+function CheckIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="m5 12.5 4.2 4.2L19 7"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2.4"
+      />
+    </svg>
+  );
+}
+
+function createBattleRounds({
+  activeMatch,
+  availableEpisodes,
+  selectedEvent,
+}: {
+  activeMatch: ActiveMatch | null;
+  availableEpisodes: AvailableEpisode[];
+  selectedEvent: ActiveEvent | null;
+}) {
+  const episodes = normalizeEpisodes(activeMatch, availableEpisodes);
+  const totalRounds = Math.max(
+    activeMatch?.totalRounds ?? selectedEvent?.roundCount ?? 5,
+    1,
+  );
+  const rounds: BattleRound[] = [];
+
+  for (let index = 0; index < totalRounds; index += 1) {
+    rounds.push({
+      episodeA: episodes[index % episodes.length],
+      episodeB: episodes[(index + 1) % episodes.length],
+    });
+  }
+
+  return rounds;
+}
+
+function normalizeEpisodes(
+  activeMatch: ActiveMatch | null,
+  availableEpisodes: AvailableEpisode[],
+) {
+  const episodes = [
+    activeMatch?.episodeA,
+    activeMatch?.episodeB,
+    ...availableEpisodes,
+  ].filter(isEpisode);
+  const uniqueEpisodes = new Map<number | string, EpisodeCard>();
+
+  episodes.forEach((episode, index) => {
+    uniqueEpisodes.set(episode.episodeId ?? `${episode.title}-${index}`, episode);
+  });
+
+  const normalizedEpisodes = Array.from(uniqueEpisodes.values());
+
+  return normalizedEpisodes.length >= 2 ? normalizedEpisodes : SAMPLE_EPISODES;
+}
+
+function isEpisode(value: EpisodeCard | null | undefined): value is EpisodeCard {
+  return Boolean(value);
+}
+
+function getInitialView(
+  activeEvents: ActiveEvent[],
+  activeMatch: ActiveMatch | null,
+): RingView {
+  if (activeMatch?.episodeA && activeMatch.episodeB) {
+    return "battle";
+  }
+
+  return activeEvents.length > 0 ? "list" : "empty";
+}
+
 function formatEventType(value?: string | null) {
   const normalized = value?.trim();
 
@@ -474,11 +674,11 @@ function formatEventType(value?: string | null) {
   const upperValue = normalized.toUpperCase();
 
   if (upperValue.includes("MONTH")) {
-    return "Monthly Royal Rumble";
+    return "Monthly Show";
   }
 
   if (upperValue.includes("YEAR")) {
-    return "Yearly Champion";
+    return "Yearly Show";
   }
 
   if (upperValue.includes("WEEK")) {
@@ -488,52 +688,9 @@ function formatEventType(value?: string | null) {
   return normalized;
 }
 
-function formatStatusLabel(value?: string | null, fallback = "UNKNOWN") {
-  const normalized = value?.trim().toUpperCase() || fallback;
-
-  const labels: Record<string, string> = {
-    ACTIVE: "진행 중",
-    AVAILABLE: "가능",
-    CANCELLED: "취소",
-    CLOSED: "종료",
-    COMPLETED: "완료",
-    ENDED: "종료",
-    IN_PROGRESS: "진행 중",
-    OPEN: "오픈",
-    PENDING: "대기",
-    SCHEDULED: "예정",
-    UPCOMING: "예정",
-  };
-
-  return labels[normalized] ?? normalized;
-}
-
-function formatRoundLabel(match: ActiveMatch) {
-  const currentRound = match.currentRound ?? getCompletedRounds(match) + 1;
-  const totalRounds = Math.max(match.totalRounds ?? 1, 1);
-
-  return `${currentRound}/${totalRounds}R`;
-}
-
-function getCompletedRounds(match: ActiveMatch) {
-  if (typeof match.completedRounds === "number") {
-    return match.completedRounds;
-  }
-
-  if (typeof match.currentRound === "number") {
-    return Math.max(match.currentRound - 1, 0);
-  }
-
-  return 0;
-}
-
 function formatEventDate(event: ActiveEvent) {
   if (event.displayDate) {
     return event.displayDate;
-  }
-
-  if (event.startsAt && event.endsAt) {
-    return `${formatDateLabel(event.startsAt)} - ${formatDateLabel(event.endsAt)}`;
   }
 
   if (event.startsAt) {
@@ -541,22 +698,6 @@ function formatEventDate(event: ActiveEvent) {
   }
 
   return "일정 미정";
-}
-
-function formatReward(value?: number | null) {
-  if (typeof value !== "number" || value <= 0) {
-    return "보상 없음";
-  }
-
-  return `+${value}점`;
-}
-
-function formatRoundCount(value?: number | null) {
-  if (typeof value !== "number" || value <= 0) {
-    return "-";
-  }
-
-  return `${value}R`;
 }
 
 function formatDateLabel(value?: string | null) {
@@ -573,6 +714,25 @@ function formatDateLabel(value?: string | null) {
   const [, year, month, day] = match;
 
   return `${year}.${month}.${day}`;
+}
+
+function formatEpisodeRecord(episode: EpisodeCard) {
+  const wins = getNumberValue(episode.wins);
+  const losses = getNumberValue(episode.losses);
+
+  if (wins === null || losses === null) {
+    return "전적 없음";
+  }
+
+  return `${wins}승 ${losses}패`;
+}
+
+function getEpisodeScore(episode?: EpisodeCard | null) {
+  return getNumberValue(episode?.score) ?? getNumberValue(episode?.titleScore) ?? 1200;
+}
+
+function getNumberValue(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function getEventKey(event: ActiveEvent, index: number) {
