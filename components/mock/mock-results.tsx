@@ -1,5 +1,6 @@
 "use client";
 
+import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
 import { useMockApp } from "@/components/mock/mock-app-provider";
 import {
@@ -15,6 +16,8 @@ import {
   type MockEpisode,
   type MockSession,
 } from "@/lib/mock-flow";
+import annualBeltImage from "@/public/images/ranking/champion-belt-annual.png";
+import monthlyBeltImage from "@/public/images/ranking/champion-belt-monthly.png";
 
 export function MockResults() {
   const { state } = useMockApp();
@@ -45,14 +48,13 @@ export function MockResults() {
 
       <section className="relative z-10 px-4 pb-[calc(8.5rem+env(safe-area-inset-bottom))] pt-6">
         <div className="flex flex-col items-center text-center">
-          <div className="flex size-[96px] items-center justify-center rounded-full bg-[#ff0002] text-[42px] font-light text-white">
-            ✓
-          </div>
-          <p className="mt-6 text-xs font-semibold text-[#ff5b5d]">
+          <p className="text-xs font-semibold text-[#ff5b5d]">
             {getSessionTypeLabel(session.type)}
           </p>
           <h1 className="mt-2 text-xl font-semibold leading-[1.4] text-white">
-            모든 판정이 완료되었습니다
+            {session.type === "MONTHLY"
+              ? "타이틀전까지 완료되었습니다"
+              : "모든 판정이 완료되었습니다"}
           </h1>
           <p className="mt-2 text-sm font-medium text-[#b1b9c5]">
             {session.matches.length}개 매치 결과가 로컬 랭킹에 반영됐습니다.
@@ -60,12 +62,17 @@ export function MockResults() {
         </div>
 
         {session.type === "MONTHLY" ? (
-          <div className="mt-8 grid grid-cols-2 gap-2">
+          <div className="mt-8 flex flex-col gap-3">
             <ChampionResult
+              beltImage={monthlyBeltImage}
               episode={monthlyChampion}
               label="월간 챔피언"
             />
-            <ChampionResult episode={annualChampion} label="연간 챔피언" />
+            <ChampionResult
+              beltImage={annualBeltImage}
+              episode={annualChampion}
+              label="연간 챔피언"
+            />
           </div>
         ) : highlightedEpisode ? (
           <div className="mt-8 rounded-[20px] border border-[#ff0002]/30 bg-[#292e38] p-5">
@@ -110,23 +117,36 @@ export function MockResults() {
 }
 
 function ChampionResult({
+  beltImage,
   episode,
   label,
 }: {
+  beltImage: StaticImageData;
   episode?: MockEpisode;
   label: string;
 }) {
   return (
-    <article className="min-h-[108px] rounded-2xl border border-[#ff0002]/30 bg-[#292e38] p-4">
-      <p className="text-xs font-medium text-[#b1b9c5]">{label}</p>
-      <p className="mt-2 line-clamp-2 text-base font-semibold leading-[1.4] text-white">
-        {episode?.title ?? "미정"}
-      </p>
-      {episode ? (
-        <p className="mt-2 text-xs font-semibold text-[#ff5b5d]">
-          {episode.score}점
+    <article className="grid min-h-[112px] grid-cols-[minmax(0,1fr)_8rem] items-center gap-3 overflow-hidden rounded-2xl border border-[#ff0002]/30 bg-[#292e38] p-4">
+      <div className="min-w-0">
+        <p className="text-xs font-medium text-[#b1b9c5]">{label}</p>
+        <p className="mt-2 line-clamp-2 text-base font-semibold leading-[1.4] text-white">
+          {episode?.title ?? "미정"}
         </p>
-      ) : null}
+        {episode ? (
+          <p className="mt-2 text-xs font-semibold text-[#ff5b5d]">
+            {episode.score}점
+          </p>
+        ) : null}
+      </div>
+      <div className="relative h-16 w-32">
+        <Image
+          alt={`${label} 타이틀 벨트`}
+          className="object-contain"
+          fill
+          sizes="128px"
+          src={beltImage}
+        />
+      </div>
     </article>
   );
 }
