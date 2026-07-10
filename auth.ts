@@ -12,8 +12,56 @@ type BackendLoginResponse = {
   message?: string;
 };
 
+type JwtPayload = Record<string, unknown>;
+
 function getStringCredential(value: unknown) {
   return typeof value === "string" ? value : "";
+}
+
+function getStringValue(value: unknown) {
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function getStringClaim(payload: JwtPayload | null, keys: string[]) {
+  if (!payload) {
+    return null;
+  }
+
+  for (const key of keys) {
+    const value = getStringValue(payload[key]);
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function decodeJwtPayload(token: string) {
+  const [, payload] = token.split(".");
+
+  if (!payload) {
+    return null;
+  }
+
+  try {
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const paddedBase64 = base64.padEnd(
+      Math.ceil(base64.length / 4) * 4,
+      "=",
+    );
+    const binary = atob(paddedBase64);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    const decoded = new TextDecoder().decode(bytes);
+    const parsed = JSON.parse(decoded) as unknown;
+
+    return parsed && typeof parsed === "object"
+      ? (parsed as JwtPayload)
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 function getLoginUrl() {
@@ -66,12 +114,44 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null;
         }
 
+        const payload = decodeJwtPayload(data.data.accessToken);
+        const tokenEmail = getStringClaim(payload, ["email"]);
+        const sessionEmail = tokenEmail ?? email;
+        const tokenName = getStringClaim(payload, [
+          "name",
+          "nickname",
+          "preferred_username",
+          "username",
+        ]);
+        const tokenId = getStringClaim(payload, ["sub", "id", "userId"]);
+
         return {
-          id: email,
-          email,
-          name: null,
+          id: tokenId ?? sessionEmail,
+          email: sessionEmail,
+          name: tokenName === sessionEmail ? null : tokenName,
         };
       },
     }),
   ],
+  callbacks: {
+    jwt({ token, user }) {
+      if (user) {
+        token.sub = user.id ?? token.sub;
+        token.email = user.email ?? token.email;
+        token.name = user.name ?? token.name;
+      }
+
+      return token;
+    },
+    session({ session, token }) {
+      session.user = {
+        ...session.user,
+        id: getStringValue(token.sub) ?? session.user?.id,
+        email: getStringValue(token.email) ?? session.user?.email,
+        name: getStringValue(token.name) ?? session.user?.name,
+      };
+
+      return session;
+    },
+  },
 });
