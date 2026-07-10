@@ -88,7 +88,13 @@ function getLoginUrl() {
   return null;
 }
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+export const {
+  handlers,
+  signIn,
+  signOut,
+  auth,
+  unstable_update: update,
+} = NextAuth({
   trustHost: true,
   session: {
     strategy: "jwt",
@@ -155,7 +161,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    jwt({ token, user }) {
+    jwt({ token, user, trigger, session }) {
       if (user) {
         token.accessToken = user.accessToken ?? token.accessToken;
         token.sub = user.id ?? token.sub;
@@ -168,6 +174,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           user.onboardingCompletedAt ?? token.onboardingCompletedAt;
         token.refreshToken = user.refreshToken ?? token.refreshToken;
         token.tokenType = user.tokenType ?? token.tokenType;
+      }
+
+      if (trigger === "update") {
+        const updatedUser = getUpdatedSessionUser(session);
+        const onboardingCompleted = getBooleanValue(
+          updatedUser?.onboardingCompleted,
+        );
+        const onboardingCompletedAt = getStringValue(
+          updatedUser?.onboardingCompletedAt,
+        );
+
+        token.onboardingCompleted =
+          onboardingCompleted ?? token.onboardingCompleted;
+        token.onboardingCompletedAt =
+          onboardingCompletedAt ?? token.onboardingCompletedAt;
       }
 
       return token;
@@ -190,3 +211,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   },
 });
+
+function getUpdatedSessionUser(session: unknown) {
+  if (!session || typeof session !== "object" || !("user" in session)) {
+    return null;
+  }
+
+  const { user } = session as {
+    user?: {
+      onboardingCompleted?: unknown;
+      onboardingCompletedAt?: unknown;
+    };
+  };
+
+  return user ?? null;
+}

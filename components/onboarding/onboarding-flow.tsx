@@ -1,6 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
+import {
+  saveOnboardingEpisode,
+  suggestOnboardingEpisodeTitle,
+} from "@/app/onboarding/actions";
 import { MobileHomeIndicator } from "@/components/auth/auth-screen";
 import { ActionButton } from "@/components/ui/action-button";
 import { TextArea } from "@/components/ui/text-area";
@@ -11,33 +16,53 @@ type OnboardingStep = "welcome" | "episodes";
 type EpisodeDraft = {
   content: string;
   date: string;
+  episodeId?: number;
   title: string;
 };
 
 const EPISODE_COUNT = 5;
 
 export function OnboardingFlow() {
+  const router = useRouter();
   const [step, setStep] = useState<OnboardingStep>("welcome");
   const [activeIndex, setActiveIndex] = useState(0);
   const [episodes, setEpisodes] = useState<EpisodeDraft[]>(() =>
     Array.from({ length: EPISODE_COUNT }, createEpisodeDraft),
   );
+  const [message, setMessage] = useState("");
+  const [isSaving, startSavingTransition] = useTransition();
+  const [isSuggesting, startSuggestingTransition] = useTransition();
 
   const activeEpisode = episodes[activeIndex];
-  const isActiveEpisodeReady = isEpisodeReady(activeEpisode);
+  const isActiveEpisodeSaved = Boolean(activeEpisode.episodeId);
+  const isActiveEpisodeReady =
+    isActiveEpisodeSaved || isEpisodeReady(activeEpisode);
   const isLastEpisode = activeIndex === EPISODE_COUNT - 1;
 
   function updateEpisode(field: keyof EpisodeDraft, value: string) {
+    setMessage("");
     setEpisodes((currentEpisodes) =>
       currentEpisodes.map((episode, index) =>
-        index === activeIndex ? { ...episode, [field]: value } : episode,
+        index === activeIndex
+          ? { ...episode, [field]: value, episodeId: undefined }
+          : episode,
       ),
     );
   }
 
   function generateTitle() {
-    const nextTitle = getSuggestedTitle(activeEpisode.content, activeIndex);
-    updateEpisode("title", nextTitle);
+    setMessage("");
+
+    startSuggestingTransition(async () => {
+      const result = await suggestOnboardingEpisodeTitle(activeEpisode.content);
+
+      if (!result.success || !result.title) {
+        setMessage(result.message);
+        return;
+      }
+
+      updateEpisode("title", result.title);
+    });
   }
 
   function handleBack() {
@@ -59,9 +84,41 @@ export function OnboardingFlow() {
       return;
     }
 
-    if (!isLastEpisode) {
+    if (activeEpisode.episodeId && !isLastEpisode) {
       setActiveIndex((currentIndex) => currentIndex + 1);
+      return;
     }
+
+    setMessage("");
+
+    startSavingTransition(async () => {
+      const result = await saveOnboardingEpisode({
+        completeOnboarding: isLastEpisode,
+        content: activeEpisode.content,
+        date: activeEpisode.date,
+        title: activeEpisode.title,
+      });
+
+      if (!result.success || !result.episodeId) {
+        setMessage(result.message);
+        return;
+      }
+
+      setEpisodes((currentEpisodes) =>
+        currentEpisodes.map((episode, index) =>
+          index === activeIndex
+            ? { ...episode, episodeId: result.episodeId }
+            : episode,
+        ),
+      );
+
+      if (result.completed) {
+        router.replace("/ring");
+        return;
+      }
+
+      setActiveIndex((currentIndex) => currentIndex + 1);
+    });
   }
 
   return (
@@ -73,7 +130,10 @@ export function OnboardingFlow() {
           <EpisodeRegistrationScreen
             activeEpisode={activeEpisode}
             activeIndex={activeIndex}
+            isPending={isSaving}
             isPrimaryActive={isActiveEpisodeReady}
+            isSuggesting={isSuggesting}
+            message={message}
             onBack={handleBack}
             onGenerateTitle={generateTitle}
             onPrimaryAction={handlePrimaryAction}
@@ -118,7 +178,10 @@ function WelcomeScreen({ onStart }: WelcomeScreenProps) {
 type EpisodeRegistrationScreenProps = {
   activeEpisode: EpisodeDraft;
   activeIndex: number;
+  isPending: boolean;
   isPrimaryActive: boolean;
+  isSuggesting: boolean;
+  message: string;
   onBack: () => void;
   onGenerateTitle: () => void;
   onPrimaryAction: () => void;
@@ -129,7 +192,10 @@ type EpisodeRegistrationScreenProps = {
 function EpisodeRegistrationScreen({
   activeEpisode,
   activeIndex,
+  isPending,
   isPrimaryActive,
+  isSuggesting,
+  message,
   onBack,
   onGenerateTitle,
   onPrimaryAction,
@@ -137,6 +203,7 @@ function EpisodeRegistrationScreen({
   onUpdateEpisode,
 }: EpisodeRegistrationScreenProps) {
   const isLastEpisode = activeIndex === EPISODE_COUNT - 1;
+  const isSaved = Boolean(activeEpisode.episodeId);
 
   return (
     <>
@@ -150,6 +217,7 @@ function EpisodeRegistrationScreen({
 
         <div className="mt-8 flex flex-col gap-8">
           <TextArea
+            disabled={isSaved || isPending}
             id="episode-content"
             label="내용"
             onChange={(event) => onUpdateEpisode("content", event.target.value)}
@@ -164,12 +232,14 @@ function EpisodeRegistrationScreen({
             </FieldLabel>
             <TextInput
               aria-label="AI 제목 생성"
+              disabled={isSaved || isPending}
               id="episode-title"
               onChange={(event) => onUpdateEpisode("title", event.target.value)}
               placeholder="내용 입력 후 AI 제목을 생성할 수 있어요."
               trailingIcon={
                 <RefreshTitleButton
-                  disabled={!activeEpisode.content.trim()}
+                  disabled={!activeEpisode.content.trim() || isSaved || isPending}
+                  isPending={isSuggesting}
                   onClick={onGenerateTitle}
                 />
               }
@@ -179,6 +249,7 @@ function EpisodeRegistrationScreen({
           </div>
 
           <TextInput
+            disabled={isSaved || isPending}
             id="episode-date"
             inputMode="numeric"
             label="날짜"
@@ -192,16 +263,27 @@ function EpisodeRegistrationScreen({
             type="text"
             value={activeEpisode.date}
           />
+
+          {message ? (
+            <p className="text-sm font-medium leading-[1.4] tracking-[-0.01em] text-[#ff0002]" role="alert">
+              {message}
+            </p>
+          ) : null}
         </div>
       </section>
 
       <div className="px-4 pt-3.5">
         <ActionButton
+          disabled={isPending}
           isActive={isPrimaryActive}
           onClick={onPrimaryAction}
           type="button"
         >
-          {isLastEpisode ? "등록 완료하고 배치전 시작하기" : "다음 에피소드 등록하기"}
+          {isPending
+            ? "등록 중..."
+            : isLastEpisode
+              ? "등록 완료하고 배치전 시작하기"
+              : "다음 에피소드 등록하기"}
         </ActionButton>
         <MobileHomeIndicator />
       </div>
@@ -286,15 +368,20 @@ function FieldLabel({ children, htmlFor, icon }: FieldLabelProps) {
 
 type RefreshTitleButtonProps = {
   disabled: boolean;
+  isPending: boolean;
   onClick: () => void;
 };
 
-function RefreshTitleButton({ disabled, onClick }: RefreshTitleButtonProps) {
+function RefreshTitleButton({
+  disabled,
+  isPending,
+  onClick,
+}: RefreshTitleButtonProps) {
   return (
     <button
       aria-label="AI 제목 다시 생성"
       className="flex size-5 items-center justify-center text-white disabled:text-[#87919e]"
-      disabled={disabled}
+      disabled={disabled || isPending}
       onClick={onClick}
       type="button"
     >
@@ -361,19 +448,6 @@ function createEpisodeDraft(): EpisodeDraft {
 
 function isEpisodeReady(episode: EpisodeDraft) {
   return Boolean(episode.title.trim() && episode.date.trim());
-}
-
-function getSuggestedTitle(content: string, index: number) {
-  const normalizedContent = content.replace(/\s+/g, " ").trim();
-
-  if (!normalizedContent) {
-    return `에피소드 ${index + 1}`;
-  }
-
-  const [firstSentence] = normalizedContent.split(/[.!?\n]/);
-  const titleBase = firstSentence || normalizedContent;
-
-  return titleBase.length > 14 ? `${titleBase.slice(0, 14)}...` : titleBase;
 }
 
 function formatDateForDisplay(date: Date) {
