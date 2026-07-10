@@ -49,6 +49,23 @@ type RingScreenProps = {
   data: RingResponse;
 };
 
+export type RingBattleEpisode = EpisodeCardDto & {
+  recordLabel: string;
+  score: number;
+};
+
+export type RingMatchScreenProps = {
+  actionLabel?: string;
+  backHref?: string;
+  currentRound: number;
+  episodeA: RingBattleEpisode;
+  episodeB: RingBattleEpisode;
+  eventTitle: string;
+  onConfirmWinner: (winnerEpisodeId: number) => void;
+  phaseLabel: string;
+  totalRounds: number;
+};
+
 type BattleSide = "a" | "b";
 
 type CardFlipState = Record<BattleSide, boolean>;
@@ -60,10 +77,7 @@ type BattleRound = {
 
 type RingView = "empty" | "battle" | "complete";
 
-type BattleEpisode = EpisodeCardDto & {
-  recordLabel: string;
-  score: number;
-};
+type BattleEpisode = RingBattleEpisode;
 
 const MOCK_EPISODE_RECORD = "5승 2패";
 const MOCK_EPISODE_SCORE = 1000;
@@ -150,6 +164,63 @@ export function RingScreen({ data }: RingScreenProps) {
   );
 }
 
+export function RingMatchScreen({
+  actionLabel,
+  backHref = "/mock/home",
+  currentRound,
+  episodeA,
+  episodeB,
+  eventTitle,
+  onConfirmWinner,
+  phaseLabel,
+  totalRounds,
+}: RingMatchScreenProps) {
+  const [selectedSide, setSelectedSide] = useState<BattleSide | null>(null);
+  const [flippedCards, setFlippedCards] = useState<CardFlipState>(
+    INITIAL_CARD_FLIP_STATE,
+  );
+  const round: BattleRound = { episodeA, episodeB };
+
+  function confirmWinner() {
+    if (!selectedSide) {
+      return;
+    }
+
+    onConfirmWinner(
+      selectedSide === "a" ? episodeA.episodeId : episodeB.episodeId,
+    );
+  }
+
+  function toggleCard(side: BattleSide) {
+    setFlippedCards((current) => ({
+      ...current,
+      [side]: !current[side],
+    }));
+  }
+
+  return (
+    <main className="min-h-svh bg-[#12161b] text-white">
+      <div className="relative mx-auto min-h-svh w-full max-w-[375px] overflow-hidden bg-[#12161b]">
+        <RingArenaBackground isSubtle />
+        <RingHeader backHref={backHref} />
+        <BattleScreen
+          actionLabel={actionLabel}
+          currentRound={round}
+          currentRoundNumber={currentRound}
+          eyebrow={`${eventTitle} · ${phaseLabel}`}
+          flippedCards={flippedCards}
+          onMoveNext={confirmWinner}
+          onSelectWinner={setSelectedSide}
+          onToggleDetail={toggleCard}
+          roundIndex={Math.max(currentRound - 1, 0)}
+          selectedSide={selectedSide}
+          totalRounds={totalRounds}
+        />
+      </div>
+    </main>
+  );
+}
+
 function EmptyRingState() {
   return (
     <>
@@ -164,38 +235,56 @@ function EmptyRingState() {
 }
 
 function BattleScreen({
+  actionLabel,
   currentRound,
+  currentRoundNumber,
+  eyebrow,
   flippedCards,
+  heading = "이번 라운드, 더 힘들었던 에피소드에 판정을 내려주세요",
   onMoveNext,
   onSelectWinner,
   onToggleDetail,
   roundIndex,
   selectedSide,
+  subtitle = "카드를 눌러 승자를 선택하세요",
   totalRounds,
 }: {
+  actionLabel?: string;
   currentRound: BattleRound;
+  currentRoundNumber?: number;
+  eyebrow?: string;
   flippedCards: CardFlipState;
+  heading?: string;
   onMoveNext: () => void;
   onSelectWinner: (side: BattleSide) => void;
   onToggleDetail: (side: BattleSide) => void;
   roundIndex: number;
   selectedSide: BattleSide | null;
+  subtitle?: string;
   totalRounds: number;
 }) {
   return (
     <>
       <section className="relative z-10 px-4 pt-[calc(max(env(safe-area-inset-top),44px)+78px)] pb-[calc(7.75rem+env(safe-area-inset-bottom))]">
         <div className="max-w-[285px]">
+          {eyebrow ? (
+            <p className="mb-2 truncate text-xs font-semibold text-[#ff5b5d]">
+              {eyebrow}
+            </p>
+          ) : null}
           <h1 className="text-xl font-semibold leading-[1.4] text-white">
-            이번 라운드, 더 힘들었던 에피소드에 판정을 내려주세요
+            {heading}
           </h1>
           <p className="mt-2 text-sm font-medium leading-[1.4] text-[#8b95a1]">
-            카드를 눌러 승자를 선택하세요
+            {subtitle}
           </p>
         </div>
 
         <div className="mt-[54px]">
-          <RoundCounter current={roundIndex + 1} total={totalRounds} />
+          <RoundCounter
+            current={currentRoundNumber ?? roundIndex + 1}
+            total={totalRounds}
+          />
           <div className="mt-4 grid grid-cols-[1fr_1fr] gap-[11px]">
             <BattleCard
               episode={currentRound.episodeA}
@@ -222,7 +311,8 @@ function BattleScreen({
 
       <BottomActionArea>
         <ActionButton isActive={Boolean(selectedSide)} onClick={onMoveNext}>
-          {roundIndex === totalRounds - 1 ? "선택 완료" : "다음"}
+          {actionLabel ??
+            (roundIndex === totalRounds - 1 ? "선택 완료" : "다음")}
         </ActionButton>
       </BottomActionArea>
     </>
@@ -481,7 +571,13 @@ function RingArenaBackground({ isSubtle = false }: { isSubtle?: boolean }) {
   );
 }
 
-function RingHeader({ onBack }: { onBack?: () => void }) {
+function RingHeader({
+  backHref = "/",
+  onBack,
+}: {
+  backHref?: string;
+  onBack?: () => void;
+}) {
   const className =
     "flex size-6 items-center justify-center text-white transition-colors hover:text-[#ff0002] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ff0002]";
 
@@ -497,7 +593,7 @@ function RingHeader({ onBack }: { onBack?: () => void }) {
           <BackIcon />
         </button>
       ) : (
-        <Link aria-label="이전 화면으로 이동" className={className} href="/">
+        <Link aria-label="이전 화면으로 이동" className={className} href={backHref}>
           <BackIcon />
         </Link>
       )}
