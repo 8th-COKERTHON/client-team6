@@ -16,10 +16,10 @@ export default function SignupPage() {
   return (
     <form
       action={formAction}
-      className="space-y-5 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm"
+      className="space-y-5 rounded-lg border border-[#292e38] bg-[#171c23] p-6 shadow-sm"
     >
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">
+        <h1 className="text-2xl font-semibold tracking-tight text-white">
           Create account
         </h1>
       </div>
@@ -51,14 +51,14 @@ export default function SignupPage() {
       </ActionButton>
 
       {state.message ? (
-        <p className="text-sm text-red-600" role="alert">
+        <p className="text-sm text-[#ff0002]" role="alert">
           {state.message}
         </p>
       ) : null}
 
-      <p className="text-center text-sm text-zinc-600">
+      <p className="text-center text-sm text-[#b1b9c5]">
         Already have an account?{" "}
-        <Link className="font-medium text-zinc-950" href="/signin">
+        <Link className="font-medium text-white" href="/signin">
           Sign in
         </Link>
       </p>

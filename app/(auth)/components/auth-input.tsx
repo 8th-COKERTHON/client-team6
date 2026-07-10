@@ -1,6 +1,7 @@
-import type { InputHTMLAttributes } from "react";
+import { TextInput, type TextInputProps } from "@/components/ui/text-input";
 
-type AuthInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "name"> & {
+type AuthInputProps = Omit<TextInputProps, "className" | "inputClassName" | "name"> & {
+  className?: string;
   label: string;
   name: string;
 };
@@ -12,23 +13,14 @@ export function AuthInput({
   className,
   ...props
 }: AuthInputProps) {
-  const inputId = id ?? name;
-
   return (
-    <label className="block space-y-2" htmlFor={inputId}>
-      <span className="text-sm font-medium text-zinc-800">{label}</span>
-      <input
-        className={[
-          "h-11 w-full rounded-md border border-zinc-300 px-3 text-base text-zinc-950",
-          "outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-950",
-          className,
-        ]
-          .filter(Boolean)
-          .join(" ")}
-        id={inputId}
-        name={name}
-        {...props}
-      />
-    </label>
+    <TextInput
+      id={id}
+      inputClassName={className}
+      label={label}
+      name={name}
+      placeholder={props.placeholder ?? label}
+      {...props}
+    />
   );
 }
