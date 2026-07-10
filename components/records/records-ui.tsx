@@ -86,9 +86,7 @@ export function RecordsSectionHeader({
 
 export function HomeIndicator() {
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 mx-auto flex h-[calc(34px+env(safe-area-inset-bottom))] w-full max-w-[375px] items-end justify-center bg-[#12161b] pb-[max(8px,env(safe-area-inset-bottom))]">
-      <span aria-hidden="true" className="h-[5px] w-[134px] rounded-full bg-white/85" />
-    </div>
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 mx-auto h-[calc(34px+env(safe-area-inset-bottom))] w-full max-w-[375px] bg-[#12161b]" />
   );
 }
 

@@ -76,8 +76,6 @@ function GuestHomeActions() {
 
 function HomeIndicator() {
   return (
-    <div className="absolute inset-x-0 bottom-0 z-10 flex h-[calc(env(safe-area-inset-bottom)+2.125rem)] items-end justify-center pb-[max(env(safe-area-inset-bottom),0.5rem)]">
-      <span className="h-[5px] w-[8.375rem] rounded-full bg-white/85" />
-    </div>
+    <div className="absolute inset-x-0 bottom-0 z-10 h-[calc(env(safe-area-inset-bottom)+2.125rem)]" />
   );
 }

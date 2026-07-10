@@ -59,14 +59,12 @@ export function MobileHomeIndicator({ className }: MobileHomeIndicatorProps) {
   return (
     <div
       className={[
-        "flex h-[calc(env(safe-area-inset-bottom)+34px)] items-end justify-center pb-[max(env(safe-area-inset-bottom),8px)]",
+        "h-[calc(env(safe-area-inset-bottom)+34px)]",
         className,
       ]
         .filter(Boolean)
         .join(" ")}
-    >
-      <span className="h-[5px] w-[134px] rounded-full bg-white/85" />
-    </div>
+    />
   );
 }
 

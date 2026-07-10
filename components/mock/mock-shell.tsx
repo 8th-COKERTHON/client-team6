@@ -108,9 +108,7 @@ export function MockHeader({
 
 export function MockHomeIndicator() {
   return (
-    <div className="flex h-[calc(34px+env(safe-area-inset-bottom))] w-full items-end justify-center pb-[max(8px,env(safe-area-inset-bottom))]">
-      <span aria-hidden="true" className="h-[5px] w-[134px] rounded-full bg-white/85" />
-    </div>
+    <div className="h-[calc(34px+env(safe-area-inset-bottom))] w-full" />
   );
 }
 
