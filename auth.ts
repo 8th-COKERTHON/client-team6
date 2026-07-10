@@ -5,9 +5,13 @@ type BackendLoginResponse = {
   success?: boolean;
   data?: {
     accessToken?: string;
+    email?: string;
+    expiresIn?: number;
+    name?: string;
+    onboardingCompleted?: boolean;
+    onboardingCompletedAt?: string;
     refreshToken?: string;
     tokenType?: string;
-    expiresIn?: number;
   };
   message?: string;
 };
@@ -20,6 +24,14 @@ function getStringCredential(value: unknown) {
 
 function getStringValue(value: unknown) {
   return typeof value === "string" && value.trim() ? value : null;
+}
+
+function getBooleanValue(value: unknown) {
+  return typeof value === "boolean" ? value : null;
+}
+
+function getNumberValue(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function getStringClaim(payload: JwtPayload | null, keys: string[]) {
@@ -115,8 +127,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
 
         const payload = decodeJwtPayload(data.data.accessToken);
+        const responseEmail = getStringValue(data.data.email);
         const tokenEmail = getStringClaim(payload, ["email"]);
-        const sessionEmail = tokenEmail ?? email;
+        const sessionEmail = responseEmail ?? tokenEmail ?? email;
+        const responseName = getStringValue(data.data.name);
         const tokenName = getStringClaim(payload, [
           "name",
           "nickname",
@@ -124,11 +138,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           "username",
         ]);
         const tokenId = getStringClaim(payload, ["sub", "id", "userId"]);
+        const sessionName = responseName ?? tokenName;
 
         return {
+          accessToken: data.data.accessToken,
+          expiresIn: getNumberValue(data.data.expiresIn),
           id: tokenId ?? sessionEmail,
           email: sessionEmail,
-          name: tokenName === sessionEmail ? null : tokenName,
+          name: sessionName === sessionEmail ? null : sessionName,
+          onboardingCompleted: getBooleanValue(data.data.onboardingCompleted),
+          onboardingCompletedAt: getStringValue(data.data.onboardingCompletedAt),
+          refreshToken: getStringValue(data.data.refreshToken),
+          tokenType: getStringValue(data.data.tokenType),
         };
       },
     }),
@@ -136,9 +157,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   callbacks: {
     jwt({ token, user }) {
       if (user) {
+        token.accessToken = user.accessToken ?? token.accessToken;
         token.sub = user.id ?? token.sub;
         token.email = user.email ?? token.email;
+        token.expiresIn = user.expiresIn ?? token.expiresIn;
         token.name = user.name ?? token.name;
+        token.onboardingCompleted =
+          user.onboardingCompleted ?? token.onboardingCompleted;
+        token.onboardingCompletedAt =
+          user.onboardingCompletedAt ?? token.onboardingCompletedAt;
+        token.refreshToken = user.refreshToken ?? token.refreshToken;
+        token.tokenType = user.tokenType ?? token.tokenType;
       }
 
       return token;
@@ -146,9 +175,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     session({ session, token }) {
       session.user = {
         ...session.user,
+        accessToken: getStringValue(token.accessToken),
+        expiresIn: getNumberValue(token.expiresIn),
         id: getStringValue(token.sub) ?? session.user?.id,
         email: getStringValue(token.email) ?? session.user?.email,
         name: getStringValue(token.name) ?? session.user?.name,
+        onboardingCompleted: getBooleanValue(token.onboardingCompleted),
+        onboardingCompletedAt: getStringValue(token.onboardingCompletedAt),
+        refreshToken: getStringValue(token.refreshToken),
+        tokenType: getStringValue(token.tokenType),
       };
 
       return session;
