@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useFormStatus } from "react-dom";
+import { createPortal, useFormStatus } from "react-dom";
 import { logout } from "@/components/home/actions";
 
 export function LogoutDialog() {
@@ -28,6 +28,42 @@ export function LogoutDialog() {
     };
   }, [isOpen]);
 
+  const dialog = isOpen ? (
+    <div
+      aria-labelledby="logout-dialog-title"
+      aria-modal="true"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 px-[37px] backdrop-blur-[2px]"
+      onClick={() => setIsOpen(false)}
+      role="dialog"
+    >
+      <div
+        className="flex w-full max-w-[300px] flex-col items-center gap-6 rounded-[20px] bg-white px-4 pt-6 pb-5 shadow-[0_0_10px_rgba(0,0,0,0.08)]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <h2
+          className="w-full text-center text-base font-semibold leading-[1.4] tracking-[-0.01em] text-[#060a0c]"
+          id="logout-dialog-title"
+        >
+          로그아웃 하시나요?
+        </h2>
+
+        <div className="flex w-full justify-center gap-2">
+          <form action={logout}>
+            <LogoutSubmitButton />
+          </form>
+          <button
+            className="flex h-10 w-[130px] items-center justify-center rounded-full bg-[#292e38] px-2.5 text-center text-sm font-semibold leading-[1.4] tracking-[-0.025em] text-white transition-colors hover:bg-[#363d48] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff0002]"
+            onClick={() => setIsOpen(false)}
+            ref={cancelButtonRef}
+            type="button"
+          >
+            취소
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   return (
     <>
       <button
@@ -39,41 +75,7 @@ export function LogoutDialog() {
         <LogOutIcon />
       </button>
 
-      {isOpen ? (
-        <div
-          aria-labelledby="logout-dialog-title"
-          aria-modal="true"
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 px-[37px] backdrop-blur-[2px]"
-          onClick={() => setIsOpen(false)}
-          role="dialog"
-        >
-          <div
-            className="flex w-full max-w-[300px] flex-col items-center gap-6 rounded-[20px] bg-white px-4 pt-6 pb-5 shadow-[0_0_10px_rgba(0,0,0,0.08)]"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <h2
-              className="w-full text-center text-base font-semibold leading-[1.4] tracking-[-0.01em] text-[#060a0c]"
-              id="logout-dialog-title"
-            >
-              로그아웃 하시나요?
-            </h2>
-
-            <div className="flex w-full justify-center gap-2">
-              <form action={logout}>
-                <LogoutSubmitButton />
-              </form>
-              <button
-                className="flex h-10 w-[130px] items-center justify-center rounded-full bg-[#292e38] px-2.5 text-center text-sm font-semibold leading-[1.4] tracking-[-0.025em] text-white transition-colors hover:bg-[#363d48] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff0002]"
-                onClick={() => setIsOpen(false)}
-                ref={cancelButtonRef}
-                type="button"
-              >
-                취소
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {dialog ? createPortal(dialog, document.body) : null}
     </>
   );
 }
