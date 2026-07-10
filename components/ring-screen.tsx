@@ -2,7 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState, type ReactNode } from "react";
+import {
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type Ref,
+} from "react";
 import { ActionButton, ActionButtonLink } from "@/components/ui/action-button";
 
 export type ActiveEventDto = {
@@ -45,6 +51,8 @@ type RingScreenProps = {
 
 type BattleSide = "a" | "b";
 
+type CardFlipState = Record<BattleSide, boolean>;
+
 type BattleRound = {
   episodeA: BattleEpisode;
   episodeB: BattleEpisode;
@@ -59,6 +67,10 @@ type BattleEpisode = EpisodeCardDto & {
 
 const MOCK_EPISODE_RECORD = "5승 2패";
 const MOCK_EPISODE_SCORE = 1000;
+const INITIAL_CARD_FLIP_STATE: CardFlipState = {
+  a: false,
+  b: false,
+};
 
 export function RingScreen({ data }: RingScreenProps) {
   const activeMatch = data.activeMatch ?? null;
@@ -68,7 +80,9 @@ export function RingScreen({ data }: RingScreenProps) {
     getInitialRoundIndex(activeMatch),
   );
   const [selectedSide, setSelectedSide] = useState<BattleSide | null>(null);
-  const [isDetailMode, setIsDetailMode] = useState(false);
+  const [flippedCards, setFlippedCards] = useState<CardFlipState>(
+    INITIAL_CARD_FLIP_STATE,
+  );
   const rounds = useMemo(
     () => createBattleRounds(activeMatch),
     [activeMatch],
@@ -79,6 +93,13 @@ export function RingScreen({ data }: RingScreenProps) {
 
   function selectWinner(side: BattleSide) {
     setSelectedSide(side);
+  }
+
+  function toggleCard(side: BattleSide) {
+    setFlippedCards((current) => ({
+      ...current,
+      [side]: !current[side],
+    }));
   }
 
   function moveNextRound() {
@@ -95,7 +116,7 @@ export function RingScreen({ data }: RingScreenProps) {
 
     setRoundIndex(nextRoundIndex);
     setSelectedSide(null);
-    setIsDetailMode(false);
+    setFlippedCards(INITIAL_CARD_FLIP_STATE);
   }
 
   return (
@@ -113,10 +134,10 @@ export function RingScreen({ data }: RingScreenProps) {
         ) : currentRound ? (
           <BattleScreen
             currentRound={currentRound}
-            isDetailMode={isDetailMode}
+            flippedCards={flippedCards}
             onMoveNext={moveNextRound}
             onSelectWinner={selectWinner}
-            onToggleDetail={() => setIsDetailMode((value) => !value)}
+            onToggleDetail={toggleCard}
             roundIndex={roundIndex}
             selectedSide={selectedSide}
             totalRounds={rounds.length}
@@ -144,7 +165,7 @@ function EmptyRingState() {
 
 function BattleScreen({
   currentRound,
-  isDetailMode,
+  flippedCards,
   onMoveNext,
   onSelectWinner,
   onToggleDetail,
@@ -153,10 +174,10 @@ function BattleScreen({
   totalRounds,
 }: {
   currentRound: BattleRound;
-  isDetailMode: boolean;
+  flippedCards: CardFlipState;
   onMoveNext: () => void;
   onSelectWinner: (side: BattleSide) => void;
-  onToggleDetail: () => void;
+  onToggleDetail: (side: BattleSide) => void;
   roundIndex: number;
   selectedSide: BattleSide | null;
   totalRounds: number;
@@ -179,20 +200,20 @@ function BattleScreen({
             <BattleCard
               episode={currentRound.episodeA}
               index={1}
-              isDetailMode={isDetailMode}
+              isFlipped={flippedCards.a}
               isInactive={selectedSide !== null && selectedSide !== "a"}
               isSelected={selectedSide === "a"}
               onSelect={() => onSelectWinner("a")}
-              onToggleDetail={onToggleDetail}
+              onToggleDetail={() => onToggleDetail("a")}
             />
             <BattleCard
               episode={currentRound.episodeB}
               index={2}
-              isDetailMode={isDetailMode}
+              isFlipped={flippedCards.b}
               isInactive={selectedSide !== null && selectedSide !== "b"}
               isSelected={selectedSide === "b"}
               onSelect={() => onSelectWinner("b")}
-              onToggleDetail={onToggleDetail}
+              onToggleDetail={() => onToggleDetail("b")}
             />
           </div>
         </div>
@@ -211,7 +232,7 @@ function BattleScreen({
 function BattleCard({
   episode,
   index,
-  isDetailMode,
+  isFlipped,
   isInactive,
   isSelected,
   onSelect,
@@ -219,26 +240,107 @@ function BattleCard({
 }: {
   episode: BattleEpisode;
   index: number;
-  isDetailMode: boolean;
+  isFlipped: boolean;
   isInactive: boolean;
   isSelected: boolean;
   onSelect: () => void;
   onToggleDetail: () => void;
 }) {
+  const overviewToggleRef = useRef<HTMLButtonElement>(null);
+  const detailToggleRef = useRef<HTMLButtonElement>(null);
+
+  function toggleDetail() {
+    const nextToggleButton = isFlipped
+      ? overviewToggleRef
+      : detailToggleRef;
+
+    onToggleDetail();
+    requestAnimationFrame(() => {
+      nextToggleButton.current?.focus({ preventScroll: true });
+    });
+  }
+
   return (
     <article
       className={[
-        "flex h-[305px] min-w-0 flex-col justify-between overflow-hidden rounded-[20px]",
-        "px-3 py-4 text-left transition-all",
+        "h-[305px] min-w-0 rounded-[20px] transition-opacity duration-200",
+        isInactive ? "opacity-50" : "opacity-100",
+      ].join(" ")}
+      style={{ perspective: "1000px" }}
+    >
+      <div
+        className="relative h-full w-full transition-transform duration-500 ease-in-out motion-reduce:transition-none"
+        style={{
+          transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
+          transformStyle: "preserve-3d",
+        }}
+      >
+        <BattleCardFace
+          episode={episode}
+          index={index}
+          isDetail={false}
+          isSelected={isSelected}
+          isVisible={!isFlipped}
+          onSelect={onSelect}
+          onToggleDetail={toggleDetail}
+          toggleButtonRef={overviewToggleRef}
+        />
+        <BattleCardFace
+          episode={episode}
+          index={index}
+          isDetail
+          isSelected={isSelected}
+          isVisible={isFlipped}
+          onSelect={onSelect}
+          onToggleDetail={toggleDetail}
+          toggleButtonRef={detailToggleRef}
+        />
+      </div>
+    </article>
+  );
+}
+
+function BattleCardFace({
+  episode,
+  index,
+  isDetail,
+  isSelected,
+  isVisible,
+  onSelect,
+  onToggleDetail,
+  toggleButtonRef,
+}: {
+  episode: BattleEpisode;
+  index: number;
+  isDetail: boolean;
+  isSelected: boolean;
+  isVisible: boolean;
+  onSelect: () => void;
+  onToggleDetail: () => void;
+  toggleButtonRef: Ref<HTMLButtonElement>;
+}) {
+  return (
+    <div
+      aria-hidden={!isVisible}
+      className={[
+        "absolute inset-0 flex h-full w-full flex-col justify-between overflow-hidden rounded-[20px]",
+        "px-3 py-4 text-left",
         isSelected
           ? "border-[1.5px] border-[#ff0002] bg-[#ff0002]/[0.08]"
           : "border border-[#363d48] bg-[#292e38]/70",
-        isInactive ? "opacity-50" : "opacity-100",
+        isVisible ? "pointer-events-auto" : "pointer-events-none",
       ].join(" ")}
+      inert={!isVisible}
+      style={{
+        backfaceVisibility: "hidden",
+        transform: isDetail ? "rotateY(180deg)" : "rotateY(0deg)",
+        WebkitBackfaceVisibility: "hidden",
+      }}
     >
       <button
         className="flex min-h-0 flex-1 flex-col items-start text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ff0002]"
         onClick={onSelect}
+        tabIndex={isVisible ? 0 : -1}
         type="button"
       >
         <span
@@ -253,7 +355,7 @@ function BattleCard({
         <span className="mt-4 block w-full text-lg font-semibold leading-[1.4] text-white">
           {episode.title || "제목 없음"}
         </span>
-        {isDetailMode ? (
+        {isDetail ? (
           <span className="mt-2 line-clamp-5 block w-full text-[13px] font-medium leading-[1.6] text-white">
             {episode.content || "등록된 상세 내용이 없습니다."}
           </span>
@@ -264,7 +366,7 @@ function BattleCard({
       </button>
 
       <div className="mt-4">
-        {!isDetailMode ? (
+        {!isDetail ? (
           <p className="mb-4 text-[13px] font-medium leading-[1.4] text-[#b1b9c5]">
             {episode.recordLabel} | {episode.score}점
           </p>
@@ -277,16 +379,15 @@ function BattleCard({
             "focus-visible:outline-offset-2 focus-visible:outline-[#ff0002]",
             isSelected ? "border-[#ff0002]/60" : "border-[#87919e]",
           ].join(" ")}
-          onClick={(event) => {
-            event.stopPropagation();
-            onToggleDetail();
-          }}
+          onClick={onToggleDetail}
+          ref={toggleButtonRef}
+          tabIndex={isVisible ? 0 : -1}
           type="button"
         >
-          {isDetailMode ? "개요 보기" : "상세보기"}
+          {isDetail ? "개요 보기" : "상세보기"}
         </button>
       </div>
-    </article>
+    </div>
   );
 }
 
