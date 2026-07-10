@@ -1,7 +1,6 @@
+import Image from "next/image";
 import Link from "next/link";
 import { BottomNavigation } from "@/components/bottom-navigation";
-import { ChampionCaseCard } from "@/components/champion-case-card";
-import { MatchScheduleCard } from "@/components/match-schedule-card";
 
 type SignedInHomeUser = {
   email?: string | null;
@@ -14,109 +13,191 @@ type SignedInHomeProps = {
 
 const UPCOMING_MATCHES = [
   {
-    dateLabel: "7.31 월",
+    dateLabel: "2026.07.10",
     href: "/ring",
-    kind: "D - 4",
-    title: "Weekly Shows",
+    kind: "Weekly Show",
+    remainingDays: 4,
+    title: "Monday Night Rivals",
     variant: "solid",
   },
   {
-    dateLabel: "7.31 월",
+    dateLabel: "2026.07.10",
     href: "/ring",
-    kind: "D - 4",
+    kind: "Monthly Show",
+    remainingDays: 4,
     title: "Monthly Royal Rumble",
     variant: "fade",
   },
 ] as const;
 
-const CHAMPION_CASES = [
-  {
-    description: "회의 직전에 발표 자료가 전부 날아가서 다시 만든 날",
-    title: "발표 10분 전 파일 실종",
-  },
-  {
-    description: "중요한 약속 날에 비까지 맞으며 40분을 기다렸던 사건",
-    title: "비 오는 날의 긴 기다림",
-  },
-] as const;
-
 export function SignedInHome({ user }: SignedInHomeProps) {
-  const displayName = user.name || user.email?.split("@")[0] || "챔피언";
+  void user;
 
   return (
     <main className="min-h-svh bg-[#12161b] text-white">
       <div className="relative mx-auto min-h-svh w-full max-w-[375px] overflow-hidden bg-[#12161b]">
-        <header className="flex items-center justify-between px-[clamp(1rem,4.8vw,1.5rem)] pt-[calc(env(safe-area-inset-top)+2.75rem)]">
-          <div>
-            <p className="text-[22px] font-black leading-none tracking-[0]">MME</p>
-            <p className="mt-2 text-sm font-medium leading-[1.4] tracking-[-0.01em] text-[#b1b9c5]">
-              {displayName}님의 오늘
-            </p>
-          </div>
-          <button
-            aria-label="알림"
-            className="flex size-11 items-center justify-center rounded-full bg-[#292e38] text-[#f0f0f2] transition-colors hover:bg-[#343a46] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ff0002]"
-            type="button"
-          >
-            <BellIcon />
-          </button>
-        </header>
+        <HomeBackground />
+        <HomeHeader />
 
-        <section className="px-[clamp(1rem,4.8vw,1.5rem)] pt-[clamp(3.5rem,10svh,5rem)] pb-[calc(8.25rem+env(safe-area-inset-bottom))]">
-          <Link
-            className="group flex min-h-[clamp(6.5rem,20svh,8rem)] w-full items-center justify-between rounded-2xl bg-[#f0f0f2] px-[clamp(1.25rem,6vw,1.75rem)] text-[#12161b] transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ff0002]"
-            href="/events/new"
-          >
-            <span>
-              <span className="block text-xl font-bold leading-[1.4] tracking-[-0.01em]">
-                오늘의 사건 등록
-              </span>
-              <span className="mt-1 block text-sm font-medium leading-[1.4] tracking-[-0.01em] text-[#575e6a]">
-                지금 마음에 남은 일을 기록해요
-              </span>
-            </span>
-            <PlusIcon className="size-8 shrink-0 transition-transform group-hover:rotate-90" />
-          </Link>
-
-          <section className="mt-[clamp(3.75rem,11svh,5rem)]">
-            <div className="mb-4 flex items-end justify-between gap-3">
-              <h1 className="text-base font-semibold leading-[1.4] tracking-[-0.01em]">
-                예정된 매칭 일정
-              </h1>
-              <Link
-                className="text-sm font-medium leading-[1.4] tracking-[-0.01em] text-[#b1b9c5] transition-colors hover:text-white"
-                href="/ring"
-              >
-                전체보기
-              </Link>
-            </div>
-            <div className="flex flex-col gap-3">
-              {UPCOMING_MATCHES.map((match) => (
-                <MatchScheduleCard key={match.title} {...match} />
-              ))}
-            </div>
-          </section>
-
-          <section className="mt-[clamp(2rem,6svh,3rem)]">
-            <h2 className="text-base font-semibold leading-[1.4] tracking-[-0.01em]">
-              현재 챔피언
-            </h2>
-            <div className="mt-4 flex flex-col gap-3">
-              {CHAMPION_CASES.map((caseItem, index) => (
-                <ChampionCaseCard
-                  description={caseItem.description}
-                  key={caseItem.title}
-                  rankLabel={index === 0 ? "월간" : "올타임"}
-                  title={caseItem.title}
-                />
-              ))}
-            </div>
-          </section>
+        <section className="relative z-10 px-4 pt-6 pb-[calc(7.625rem+env(safe-area-inset-bottom))]">
+          <DailyEpisodeCard />
+          <UpcomingMatchSection />
         </section>
 
         <BottomNavigation />
       </div>
     </main>
+  );
+}
+
+function HomeBackground() {
+  return (
+    <div className="absolute inset-x-1/2 bottom-[-17.375svh] h-[clamp(50rem,115svh,58.375rem)] w-[clamp(28rem,139vw,32.5625rem)] -translate-x-1/2">
+      <Image
+        alt=""
+        className="absolute inset-0 h-full w-full object-cover opacity-25"
+        fill
+        priority
+        sizes="(max-width: 375px) 139vw, 32.5625rem"
+        src="/images/auth-arena-background.png"
+      />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,#12161b_15.38%,rgba(18,22,27,0)_61.56%,#12161b_82.87%)]" />
+    </div>
+  );
+}
+
+function HomeHeader() {
+  return (
+    <header className="relative z-10 flex h-[calc(max(env(safe-area-inset-top),44px)+54px)] items-end justify-between px-4 pb-[9px]">
+      <Link
+        aria-label="홈"
+        className="flex size-9 items-center justify-center rounded-[8.4px] text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ff0002]"
+        href="/"
+      >
+        <MmeLogoMark />
+      </Link>
+      <div className="flex items-center gap-6 text-[#b1b9c5]">
+        <button
+          aria-label="알림"
+          className="relative flex size-6 items-center justify-center transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ff0002]"
+          type="button"
+        >
+          <BellIcon />
+          <span className="absolute right-[1px] top-0 size-[5px] rounded-full bg-[#ff0002]" />
+        </button>
+        <button
+          aria-label="로그아웃"
+          className="flex size-6 items-center justify-center transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ff0002]"
+          type="button"
+        >
+          <LogOutIcon />
+        </button>
+      </div>
+    </header>
+  );
+}
+
+function DailyEpisodeCard() {
+  return (
+    <section>
+      <h1 className="text-base font-semibold leading-[1.4] tracking-[-0.01em] text-white">
+        오늘의 에피소드 등록
+      </h1>
+      <Link
+        className="group mt-4 flex min-h-[5.5625rem] items-center justify-between rounded-[20px] border border-[#ff0002]/30 bg-[#292e38] p-5 transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ff0002]"
+        href="/events/new"
+      >
+        <span className="min-w-0">
+          <span className="block truncate text-lg font-semibold leading-[1.4] tracking-[-0.01em] text-white">
+            지금 에피소드를 등록해 보세요.
+          </span>
+          <span className="mt-1.5 block text-[13px] font-medium leading-[1.4] tracking-[-0.01em] text-[#b1b9c5]">
+            바로 매칭을 시작할 수 있어요.
+          </span>
+        </span>
+        <span className="ml-4 flex size-[42px] shrink-0 items-center justify-center rounded-[14px] bg-[#ff0002] text-white transition-transform group-hover:rotate-90">
+          <PlusIcon className="size-6" />
+        </span>
+      </Link>
+    </section>
+  );
+}
+
+function UpcomingMatchSection() {
+  return (
+    <section className="mt-8">
+      <h2 className="text-base font-semibold leading-[1.4] tracking-[-0.01em] text-white">
+        예정된 매치 일정
+      </h2>
+      <div className="mt-4 flex flex-col gap-3">
+        {UPCOMING_MATCHES.map((match) => (
+          <UpcomingMatchCard key={match.title} {...match} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+type UpcomingMatchCardProps = (typeof UPCOMING_MATCHES)[number];
+
+function UpcomingMatchCard({
+  dateLabel,
+  href,
+  kind,
+  remainingDays,
+  title,
+  variant,
+}: UpcomingMatchCardProps) {
+  return (
+    <Link
+      className={[
+        "flex min-h-[4.625rem] w-full items-start justify-between rounded-2xl",
+        "px-5 py-3.5 transition-transform hover:-translate-y-0.5",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4",
+        "focus-visible:outline-[#ff0002]",
+        variant === "solid"
+          ? "bg-[#292e38]"
+          : "bg-[linear-gradient(102deg,#292e38_0%,rgba(41,46,56,0.6)_100%)]",
+      ].join(" ")}
+      href={href}
+    >
+      <span className="flex min-w-0 flex-1 items-center gap-3">
+        <span className="flex self-stretch py-1.5">
+          <span aria-hidden className="size-2 rounded-full bg-[#ff0002]" />
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate text-base font-semibold leading-[1.4] tracking-[-0.01em] text-[#f0f0f2]">
+            {title}
+          </span>
+          <span className="mt-1.5 flex min-w-0 items-center gap-2 text-[13px] font-medium leading-[1.4] tracking-[-0.01em] text-[#b1b9c5]">
+            <span className="shrink-0">{dateLabel}</span>
+            <span aria-hidden className="shrink-0">
+              |
+            </span>
+            <span className="truncate">{kind}</span>
+          </span>
+        </span>
+      </span>
+      <span className="ml-4 flex shrink-0 items-center justify-center rounded-full bg-[#363d48] px-3 py-1 text-xs font-semibold leading-[1.4] tracking-[-0.01em] text-white">
+        D-{remainingDays}
+      </span>
+    </Link>
+  );
+}
+
+function MmeLogoMark() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-6 w-[26px]"
+      fill="none"
+      viewBox="0 0 26 24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path d="M2 19 7.3 5.4 12.2 17.6 17.2 5.4 24 19" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+      <path d="M5.6 13.8h14.8" stroke="#ff0002" strokeLinecap="round" strokeWidth="1.8" />
+      <path d="M8.7 20.5 13 11.5l4.3 9" stroke="#ff0002" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.4" />
+    </svg>
   );
 }
 
@@ -138,6 +219,33 @@ function BellIcon() {
       />
       <path
         d="M13.73 20.25a2 2 0 0 1-3.46 0"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.7"
+      />
+    </svg>
+  );
+}
+
+function LogOutIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="size-6"
+      fill="none"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M14 8V5.5A1.5 1.5 0 0 0 12.5 4h-7A1.5 1.5 0 0 0 4 5.5v13A1.5 1.5 0 0 0 5.5 20h7A1.5 1.5 0 0 0 14 18.5V16"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.7"
+      />
+      <path
+        d="M10 12h9M16 8.5l3.5 3.5-3.5 3.5"
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
