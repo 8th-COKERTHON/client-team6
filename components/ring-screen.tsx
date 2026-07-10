@@ -5,112 +5,77 @@ import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
 import { ActionButton, ActionButtonLink } from "@/components/ui/action-button";
 
-type ActiveEvent = {
-  displayDate?: string | null;
-  endsAt?: string | null;
-  eventId?: number | null;
-  roundCount?: number | null;
-  scoreReward?: number | null;
-  startsAt?: string | null;
-  status?: string | null;
-  title?: string | null;
-  type?: string | null;
+export type ActiveEventDto = {
+  displayDate: string;
+  eventId: number;
+  scoreReward: number;
+  title: string;
+  type: string;
 };
 
-type AvailableEpisode = {
-  content?: string | null;
-  episodeDate?: string | null;
-  episodeId?: number | null;
-  losses?: number | null;
-  score?: number | null;
-  status?: string | null;
-  title?: string | null;
-  titleScore?: number | null;
-  wins?: number | null;
+export type AvailableEpisodeDto = {
+  episodeDate: string;
+  episodeId: number;
+  title: string;
 };
 
-type EpisodeCard = AvailableEpisode;
-
-type ActiveMatch = {
-  completedRounds?: number | null;
-  currentRound?: number | null;
-  episodeA?: EpisodeCard | null;
-  episodeB?: EpisodeCard | null;
-  eventTitle?: string | null;
-  eventType?: string | null;
-  matchId?: number | null;
-  sessionId?: number | null;
-  status?: string | null;
-  totalRounds?: number | null;
+export type EpisodeCardDto = AvailableEpisodeDto & {
+  content: string;
 };
 
-export type RingScreenData = {
-  activeEvents?: ActiveEvent[] | null;
-  activeMatch?: ActiveMatch | null;
-  activeQuestion?: unknown;
-  availableEpisodes?: AvailableEpisode[] | null;
+export type ActiveMatchDto = {
+  currentRound: number;
+  episodeA: EpisodeCardDto;
+  episodeB: EpisodeCardDto;
+  matchId: number;
+  status: string;
+  totalRounds: number;
+};
+
+export type RingResponse = {
+  activeEvents: ActiveEventDto[];
+  activeMatch?: ActiveMatchDto;
+  activeQuestion: unknown;
+  availableEpisodes: AvailableEpisodeDto[];
 };
 
 type RingScreenProps = {
-  data?: RingScreenData;
-  errorMessage?: string;
+  data: RingResponse;
 };
 
 type BattleSide = "a" | "b";
 
 type BattleRound = {
-  episodeA: EpisodeCard;
-  episodeB: EpisodeCard;
+  episodeA: BattleEpisode;
+  episodeB: BattleEpisode;
 };
 
 type RingView = "empty" | "battle" | "complete";
 
-const SAMPLE_EPISODES = [
-  {
-    content:
-      "최종 면접 결과를 기다렸지만 아쉽게 탈락했다. 오랫동안 준비했던 만큼 허탈함과 자신감이 크게 흔들렸다.",
-    episodeDate: "2026-07-10",
-    episodeId: 1,
-    losses: 2,
-    score: 1000,
-    title: "취업 최종 탈락",
-    wins: 5,
-  },
-  {
-    content:
-      "좋은 분위기라고 생각했던 소개팅 이후 갑자기 연락이 끊겼다. 이유를 알 수 없어 더 오래 신경 쓰였다.",
-    episodeDate: "2026-07-10",
-    episodeId: 2,
-    losses: 2,
-    score: 1000,
-    title: "세 번째 소개팅 연락 두절",
-    wins: 5,
-  },
-] satisfies EpisodeCard[];
+type BattleEpisode = EpisodeCardDto & {
+  recordLabel: string;
+  score: number;
+};
 
-export function RingScreen({ data, errorMessage }: RingScreenProps) {
-  const availableEpisodes = useMemo(
-    () => data?.availableEpisodes ?? [],
-    [data?.availableEpisodes],
-  );
-  const activeMatch = data?.activeMatch ?? null;
+const MOCK_EPISODE_RECORD = "5승 2패";
+const MOCK_EPISODE_SCORE = 1000;
+
+export function RingScreen({ data }: RingScreenProps) {
+  const activeMatch = data.activeMatch ?? null;
   const initialView = getInitialView(activeMatch);
   const [view, setView] = useState<RingView>(initialView);
-  const [roundIndex, setRoundIndex] = useState(0);
+  const [roundIndex, setRoundIndex] = useState(() =>
+    getInitialRoundIndex(activeMatch),
+  );
   const [selectedSide, setSelectedSide] = useState<BattleSide | null>(null);
   const [isDetailMode, setIsDetailMode] = useState(false);
   const rounds = useMemo(
-    () =>
-      createBattleRounds({
-        activeMatch,
-        availableEpisodes,
-      }),
-    [activeMatch, availableEpisodes],
+    () => createBattleRounds(activeMatch),
+    [activeMatch],
   );
   const currentRound = rounds[roundIndex] ?? rounds[0];
-  const completedScore = getEpisodeScore(
-    selectedSide === "b" ? currentRound?.episodeB : currentRound?.episodeA,
-  );
+  const completedScore =
+    MOCK_EPISODE_SCORE + (data.activeEvents[0]?.scoreReward ?? 0);
 
   function selectWinner(side: BattleSide) {
     setSelectedSide(side);
@@ -136,12 +101,12 @@ export function RingScreen({ data, errorMessage }: RingScreenProps) {
   return (
     <main className="min-h-svh bg-[#12161b] text-white">
       <div className="relative mx-auto min-h-svh w-full max-w-[375px] overflow-hidden bg-[#12161b]">
-        <RingArenaBackground isSubtle={view === "battle"} />
+        {view !== "complete" ? (
+          <RingArenaBackground isSubtle={view === "battle"} />
+        ) : null}
         <RingHeader />
 
-        {errorMessage ? (
-          <RingErrorState message={errorMessage} />
-        ) : view === "empty" ? (
+        {view === "empty" ? (
           <EmptyRingState />
         ) : view === "complete" ? (
           <CompleteScreen score={completedScore} />
@@ -236,7 +201,7 @@ function BattleScreen({
 
       <BottomActionArea>
         <ActionButton isActive={Boolean(selectedSide)} onClick={onMoveNext}>
-          다음
+          {roundIndex === totalRounds - 1 ? "선택 완료" : "다음"}
         </ActionButton>
       </BottomActionArea>
     </>
@@ -252,7 +217,7 @@ function BattleCard({
   onSelect,
   onToggleDetail,
 }: {
-  episode: EpisodeCard;
+  episode: BattleEpisode;
   index: number;
   isDetailMode: boolean;
   isInactive: boolean;
@@ -301,7 +266,7 @@ function BattleCard({
       <div className="mt-4">
         {!isDetailMode ? (
           <p className="mb-4 text-[13px] font-medium leading-[1.4] text-[#b1b9c5]">
-            {formatEpisodeRecord(episode)} | {getEpisodeScore(episode)}점
+            {episode.recordLabel} | {episode.score}점
           </p>
         ) : null}
         <button
@@ -348,24 +313,6 @@ function CompleteScreen({ score }: { score: number }) {
   );
 }
 
-function RingErrorState({ message }: { message: string }) {
-  return (
-    <>
-      <section className="relative z-10 px-4 pt-[calc(max(env(safe-area-inset-top),44px)+105px)]">
-        <div className="rounded-[20px] border border-[#87919e]/30 bg-[#292e38]/80 p-5">
-          <h1 className="text-base font-semibold leading-[1.4] text-[#f0f0f2]">
-            링 정보를 불러오지 못했습니다
-          </h1>
-          <p className="mt-2 text-sm font-medium leading-[1.4] text-[#b1b9c5]">
-            {message}
-          </p>
-        </div>
-      </section>
-      <BottomHomeIndicator />
-    </>
-  );
-}
-
 function ResultRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex h-[50px] items-center justify-between rounded-xl bg-[#292e38] px-5 py-3.5">
@@ -391,7 +338,7 @@ function RoundCounter({ current, total }: { current: number; total: number }) {
 
 function BottomActionArea({ children }: { children: ReactNode }) {
   return (
-    <div className="absolute inset-x-0 bottom-0 z-20 flex flex-col items-center px-4 pt-3">
+    <div className="absolute inset-x-0 bottom-0 z-20 flex flex-col items-center px-4 pt-[14px]">
       <div className="w-full max-w-[343px]">{children}</div>
       <HomeIndicator />
     </div>
@@ -492,57 +439,43 @@ function CheckIcon({ className }: { className?: string }) {
   );
 }
 
-function createBattleRounds({
-  activeMatch,
-  availableEpisodes,
-}: {
-  activeMatch: ActiveMatch | null;
-  availableEpisodes: AvailableEpisode[];
-}) {
-  const episodes = normalizeEpisodes(activeMatch, availableEpisodes);
-  const totalRounds = Math.max(activeMatch?.totalRounds ?? 5, 1);
-  const rounds: BattleRound[] = [];
-
-  for (let index = 0; index < totalRounds; index += 1) {
-    rounds.push({
-      episodeA: episodes[index % episodes.length],
-      episodeB: episodes[(index + 1) % episodes.length],
-    });
+function createBattleRounds(activeMatch: ActiveMatchDto | null) {
+  if (!activeMatch) {
+    return [];
   }
 
-  return rounds;
+  const episodeA = createBattleEpisode(activeMatch.episodeA);
+  const episodeB = createBattleEpisode(activeMatch.episodeB);
+  const totalRounds = Math.max(activeMatch.totalRounds, 1);
+
+  return Array.from({ length: totalRounds }, (_, index): BattleRound =>
+    index % 2 === 0
+      ? { episodeA, episodeB }
+      : { episodeA: episodeB, episodeB: episodeA },
+  );
 }
 
-function normalizeEpisodes(
-  activeMatch: ActiveMatch | null,
-  availableEpisodes: AvailableEpisode[],
-) {
-  const episodes = [
-    activeMatch?.episodeA,
-    activeMatch?.episodeB,
-    ...availableEpisodes,
-  ].filter(isEpisode);
-  const uniqueEpisodes = new Map<number | string, EpisodeCard>();
-
-  episodes.forEach((episode, index) => {
-    uniqueEpisodes.set(episode.episodeId ?? `${episode.title}-${index}`, episode);
-  });
-
-  const normalizedEpisodes = Array.from(uniqueEpisodes.values());
-
-  return normalizedEpisodes.length >= 2 ? normalizedEpisodes : SAMPLE_EPISODES;
+function createBattleEpisode(episode: EpisodeCardDto): BattleEpisode {
+  return {
+    ...episode,
+    recordLabel: MOCK_EPISODE_RECORD,
+    score: MOCK_EPISODE_SCORE,
+  };
 }
 
-function isEpisode(value: EpisodeCard | null | undefined): value is EpisodeCard {
-  return Boolean(value);
-}
-
-function getInitialView(activeMatch: ActiveMatch | null): RingView {
-  if (activeMatch?.episodeA && activeMatch.episodeB) {
-    return "battle";
+function getInitialRoundIndex(activeMatch: ActiveMatchDto | null) {
+  if (!activeMatch) {
+    return 0;
   }
 
-  return "empty";
+  return Math.min(
+    Math.max(activeMatch.currentRound - 1, 0),
+    Math.max(activeMatch.totalRounds - 1, 0),
+  );
+}
+
+function getInitialView(activeMatch: ActiveMatchDto | null): RingView {
+  return activeMatch ? "battle" : "empty";
 }
 
 function formatDateLabel(value?: string | null) {
@@ -559,23 +492,4 @@ function formatDateLabel(value?: string | null) {
   const [, year, month, day] = match;
 
   return `${year}.${month}.${day}`;
-}
-
-function formatEpisodeRecord(episode: EpisodeCard) {
-  const wins = getNumberValue(episode.wins);
-  const losses = getNumberValue(episode.losses);
-
-  if (wins === null || losses === null) {
-    return "전적 없음";
-  }
-
-  return `${wins}승 ${losses}패`;
-}
-
-function getEpisodeScore(episode?: EpisodeCard | null) {
-  return getNumberValue(episode?.score) ?? getNumberValue(episode?.titleScore) ?? 1200;
-}
-
-function getNumberValue(value: unknown) {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
