@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { BottomNavigation } from "@/components/bottom-navigation";
+import { LogoutDialog } from "@/components/home/logout-dialog";
 
 type SignedInHomeUser = {
   email?: string | null;
@@ -85,13 +86,7 @@ function HomeHeader() {
           <BellIcon />
           <span className="absolute right-[1px] top-0 size-[5px] rounded-full bg-[#ff0002]" />
         </button>
-        <button
-          aria-label="로그아웃"
-          className="flex size-6 items-center justify-center transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ff0002]"
-          type="button"
-        >
-          <LogOutIcon />
-        </button>
+        <LogoutDialog />
       </div>
     </header>
   );
@@ -105,7 +100,7 @@ function DailyEpisodeCard() {
       </h1>
       <Link
         className="group mt-4 flex min-h-[5.5625rem] items-center justify-between rounded-[20px] border border-[#ff0002]/30 bg-[#292e38] p-5 transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ff0002]"
-        href="/events/new"
+        href="/entries/new"
       >
         <span className="min-w-0">
           <span className="block truncate text-lg font-semibold leading-[1.4] tracking-[-0.01em] text-white">
@@ -219,33 +214,6 @@ function BellIcon() {
       />
       <path
         d="M13.73 20.25a2 2 0 0 1-3.46 0"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.7"
-      />
-    </svg>
-  );
-}
-
-function LogOutIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="size-6"
-      fill="none"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M14 8V5.5A1.5 1.5 0 0 0 12.5 4h-7A1.5 1.5 0 0 0 4 5.5v13A1.5 1.5 0 0 0 5.5 20h7A1.5 1.5 0 0 0 14 18.5V16"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.7"
-      />
-      <path
-        d="M10 12h9M16 8.5l3.5 3.5-3.5 3.5"
         stroke="currentColor"
         strokeLinecap="round"
         strokeLinejoin="round"
