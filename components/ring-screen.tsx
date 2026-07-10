@@ -63,7 +63,7 @@ type BattleRound = {
   episodeB: EpisodeCard;
 };
 
-type RingView = "empty" | "list" | "battle" | "complete";
+type RingView = "empty" | "battle" | "complete";
 
 const SAMPLE_EPISODES = [
   {
@@ -89,43 +89,28 @@ const SAMPLE_EPISODES = [
 ] satisfies EpisodeCard[];
 
 export function RingScreen({ data, errorMessage }: RingScreenProps) {
-  const activeEvents = useMemo(() => data?.activeEvents ?? [], [data?.activeEvents]);
   const availableEpisodes = useMemo(
     () => data?.availableEpisodes ?? [],
     [data?.availableEpisodes],
   );
   const activeMatch = data?.activeMatch ?? null;
-  const initialView = getInitialView(activeEvents, activeMatch);
+  const initialView = getInitialView(activeMatch);
   const [view, setView] = useState<RingView>(initialView);
-  const [selectedEventIndex, setSelectedEventIndex] = useState(0);
   const [roundIndex, setRoundIndex] = useState(0);
   const [selectedSide, setSelectedSide] = useState<BattleSide | null>(null);
   const [isDetailMode, setIsDetailMode] = useState(false);
-  const selectedEvent = activeEvents[selectedEventIndex] ?? activeEvents[0] ?? null;
   const rounds = useMemo(
     () =>
       createBattleRounds({
         activeMatch,
         availableEpisodes,
-        selectedEvent,
       }),
-    [activeMatch, availableEpisodes, selectedEvent],
+    [activeMatch, availableEpisodes],
   );
   const currentRound = rounds[roundIndex] ?? rounds[0];
   const completedScore = getEpisodeScore(
     selectedSide === "b" ? currentRound?.episodeB : currentRound?.episodeA,
   );
-
-  function goToEventList() {
-    resetBattle();
-    setView(activeEvents.length > 0 ? "list" : "empty");
-  }
-
-  function startEvent(index: number) {
-    setSelectedEventIndex(index);
-    resetBattle();
-    setView("battle");
-  }
 
   function selectWinner(side: BattleSide) {
     setSelectedSide(side);
@@ -148,32 +133,21 @@ export function RingScreen({ data, errorMessage }: RingScreenProps) {
     setIsDetailMode(false);
   }
 
-  function resetBattle() {
-    setRoundIndex(0);
-    setSelectedSide(null);
-    setIsDetailMode(false);
-  }
-
   return (
     <main className="min-h-svh bg-[#12161b] text-white">
       <div className="relative mx-auto min-h-svh w-full max-w-[375px] overflow-hidden bg-[#12161b]">
         <RingArenaBackground isSubtle={view === "battle"} />
-        <RingHeader
-          onBack={view === "battle" || view === "complete" ? goToEventList : undefined}
-        />
+        <RingHeader />
 
         {errorMessage ? (
           <RingErrorState message={errorMessage} />
         ) : view === "empty" ? (
           <EmptyRingState />
-        ) : view === "list" ? (
-          <EventListScreen events={activeEvents} onSelectEvent={startEvent} />
         ) : view === "complete" ? (
           <CompleteScreen score={completedScore} />
         ) : currentRound ? (
           <BattleScreen
             currentRound={currentRound}
-            event={selectedEvent}
             isDetailMode={isDetailMode}
             onMoveNext={moveNextRound}
             onSelectWinner={selectWinner}
@@ -203,69 +177,8 @@ function EmptyRingState() {
   );
 }
 
-function EventListScreen({
-  events,
-  onSelectEvent,
-}: {
-  events: ActiveEvent[];
-  onSelectEvent: (index: number) => void;
-}) {
-  return (
-    <>
-      <section className="relative z-10 px-[18px] pt-[calc(max(env(safe-area-inset-top),44px)+78px)] pb-[calc(3rem+env(safe-area-inset-bottom))]">
-        <h1 className="text-base font-semibold leading-[1.4] text-white">
-          진행할 수 있는 매치
-        </h1>
-        <div className="mt-4 flex flex-col gap-3">
-          {events.map((event, index) => (
-            <button
-              className={[
-                "group flex min-h-[74px] w-full items-center justify-between rounded-2xl",
-                "px-5 py-3.5 text-left transition-transform hover:-translate-y-0.5",
-                "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4",
-                "focus-visible:outline-[#ff0002]",
-                index === 0
-                  ? "bg-[#292e38]"
-                  : "bg-[linear-gradient(102deg,#292e38_0%,rgba(41,46,56,0.6)_100%)]",
-              ].join(" ")}
-              key={getEventKey(event, index)}
-              onClick={() => onSelectEvent(index)}
-              type="button"
-            >
-              <span className="flex min-w-0 items-center gap-3">
-                <span
-                  aria-hidden="true"
-                  className={[
-                    "mt-[3px] size-2 shrink-0 self-start rounded-full",
-                    index === 0 ? "bg-[#ff0002]" : "bg-[#87919e]",
-                  ].join(" ")}
-                />
-                <span className="min-w-0">
-                  <span className="block truncate text-base font-semibold leading-[1.4] text-[#f0f0f2]">
-                    {event.title || "이름 없는 매치"}
-                  </span>
-                  <span className="mt-1.5 flex min-w-0 items-center gap-2 text-[13px] font-medium leading-[1.4] text-[#b1b9c5]">
-                    <span className="shrink-0">{formatEventDate(event)}</span>
-                    <span aria-hidden="true" className="shrink-0">
-                      |
-                    </span>
-                    <span className="truncate">{formatEventType(event.type)}</span>
-                  </span>
-                </span>
-              </span>
-              <ChevronRightIcon className="ml-4 size-6 shrink-0 text-[#87919e] transition-colors group-hover:text-white" />
-            </button>
-          ))}
-        </div>
-      </section>
-      <BottomHomeIndicator />
-    </>
-  );
-}
-
 function BattleScreen({
   currentRound,
-  event,
   isDetailMode,
   onMoveNext,
   onSelectWinner,
@@ -275,7 +188,6 @@ function BattleScreen({
   totalRounds,
 }: {
   currentRound: BattleRound;
-  event: ActiveEvent | null;
   isDetailMode: boolean;
   onMoveNext: () => void;
   onSelectWinner: (side: BattleSide) => void;
@@ -320,9 +232,6 @@ function BattleScreen({
           </div>
         </div>
 
-        {event?.title ? (
-          <p className="sr-only">선택된 매치: {event.title}</p>
-        ) : null}
       </section>
 
       <BottomActionArea>
@@ -563,26 +472,6 @@ function BackIcon() {
   );
 }
 
-function ChevronRightIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden="true"
-      className={className}
-      fill="none"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="m9 6 6 6-6 6"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.8"
-      />
-    </svg>
-  );
-}
-
 function CheckIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -606,17 +495,12 @@ function CheckIcon({ className }: { className?: string }) {
 function createBattleRounds({
   activeMatch,
   availableEpisodes,
-  selectedEvent,
 }: {
   activeMatch: ActiveMatch | null;
   availableEpisodes: AvailableEpisode[];
-  selectedEvent: ActiveEvent | null;
 }) {
   const episodes = normalizeEpisodes(activeMatch, availableEpisodes);
-  const totalRounds = Math.max(
-    activeMatch?.totalRounds ?? selectedEvent?.roundCount ?? 5,
-    1,
-  );
+  const totalRounds = Math.max(activeMatch?.totalRounds ?? 5, 1);
   const rounds: BattleRound[] = [];
 
   for (let index = 0; index < totalRounds; index += 1) {
@@ -653,51 +537,12 @@ function isEpisode(value: EpisodeCard | null | undefined): value is EpisodeCard 
   return Boolean(value);
 }
 
-function getInitialView(
-  activeEvents: ActiveEvent[],
-  activeMatch: ActiveMatch | null,
-): RingView {
+function getInitialView(activeMatch: ActiveMatch | null): RingView {
   if (activeMatch?.episodeA && activeMatch.episodeB) {
     return "battle";
   }
 
-  return activeEvents.length > 0 ? "list" : "empty";
-}
-
-function formatEventType(value?: string | null) {
-  const normalized = value?.trim();
-
-  if (!normalized) {
-    return "Event";
-  }
-
-  const upperValue = normalized.toUpperCase();
-
-  if (upperValue.includes("MONTH")) {
-    return "Monthly Show";
-  }
-
-  if (upperValue.includes("YEAR")) {
-    return "Yearly Show";
-  }
-
-  if (upperValue.includes("WEEK")) {
-    return "Weekly Show";
-  }
-
-  return normalized;
-}
-
-function formatEventDate(event: ActiveEvent) {
-  if (event.displayDate) {
-    return event.displayDate;
-  }
-
-  if (event.startsAt) {
-    return formatDateLabel(event.startsAt);
-  }
-
-  return "일정 미정";
+  return "empty";
 }
 
 function formatDateLabel(value?: string | null) {
@@ -733,8 +578,4 @@ function getEpisodeScore(episode?: EpisodeCard | null) {
 
 function getNumberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-function getEventKey(event: ActiveEvent, index: number) {
-  return event.eventId ?? `${event.type}-${event.title}-${index}`;
 }
