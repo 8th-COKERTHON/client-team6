@@ -18,6 +18,7 @@ import {
 } from "@/lib/mock-flow";
 import annualBeltImage from "@/public/images/ranking/champion-belt-annual.png";
 import monthlyBeltImage from "@/public/images/ranking/champion-belt-monthly.png";
+import celebrationStyles from "./match-fireworks.module.css";
 
 export function MockResults() {
   const { state } = useMockApp();
@@ -71,6 +72,7 @@ export function MockResults() {
             <ChampionResult
               beltImage={annualBeltImage}
               episode={annualChampion}
+              hasGlint
               label="연간 챔피언"
             />
           </div>
@@ -119,10 +121,12 @@ export function MockResults() {
 function ChampionResult({
   beltImage,
   episode,
+  hasGlint = false,
   label,
 }: {
   beltImage: StaticImageData;
   episode?: MockEpisode;
+  hasGlint?: boolean;
   label: string;
 }) {
   return (
@@ -138,7 +142,14 @@ function ChampionResult({
           </p>
         ) : null}
       </div>
-      <div className="relative h-16 w-32">
+      <div
+        className={[
+          "relative h-16 w-32",
+          hasGlint ? celebrationStyles.beltGlint : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
         <Image
           alt={`${label} 타이틀 벨트`}
           className="object-contain"

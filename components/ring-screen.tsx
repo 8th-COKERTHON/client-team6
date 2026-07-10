@@ -60,6 +60,7 @@ export type RingMatchScreenProps = {
   currentRound: number;
   episodeA: RingBattleEpisode;
   episodeB: RingBattleEpisode;
+  isCelebrating?: boolean;
   isLocked?: boolean;
   onConfirmWinner: (winnerEpisodeId: number) => void;
   totalRounds: number;
@@ -169,6 +170,7 @@ export function RingMatchScreen({
   currentRound,
   episodeA,
   episodeB,
+  isCelebrating = false,
   isLocked = false,
   onConfirmWinner,
   totalRounds,
@@ -213,6 +215,7 @@ export function RingMatchScreen({
           currentRound={round}
           currentRoundNumber={currentRound}
           flippedCards={flippedCards}
+          isCelebrating={isCelebrating}
           isLocked={isLocked}
           onMoveNext={confirmWinner}
           onSelectWinner={(side) => {
@@ -249,6 +252,7 @@ function BattleScreen({
   currentRoundNumber,
   flippedCards,
   heading = "이번 라운드, 더 힘들었던 에피소드에 판정을 내려주세요",
+  isCelebrating = false,
   isLocked = false,
   onMoveNext,
   onSelectWinner,
@@ -263,6 +267,7 @@ function BattleScreen({
   currentRoundNumber?: number;
   flippedCards: CardFlipState;
   heading?: string;
+  isCelebrating?: boolean;
   isLocked?: boolean;
   onMoveNext: () => void;
   onSelectWinner: (side: BattleSide) => void;
@@ -296,6 +301,7 @@ function BattleScreen({
             <BattleCard
               episode={currentRound.episodeA}
               index={1}
+              isCelebrating={isCelebrating}
               isFlipped={flippedCards.a}
               isInactive={selectedSide !== null && selectedSide !== "a"}
               isSelected={selectedSide === "a"}
@@ -305,6 +311,7 @@ function BattleScreen({
             <BattleCard
               episode={currentRound.episodeB}
               index={2}
+              isCelebrating={isCelebrating}
               isFlipped={flippedCards.b}
               isInactive={selectedSide !== null && selectedSide !== "b"}
               isSelected={selectedSide === "b"}
@@ -333,6 +340,7 @@ function BattleScreen({
 function BattleCard({
   episode,
   index,
+  isCelebrating,
   isFlipped,
   isInactive,
   isSelected,
@@ -341,6 +349,7 @@ function BattleCard({
 }: {
   episode: BattleEpisode;
   index: number;
+  isCelebrating: boolean;
   isFlipped: boolean;
   isInactive: boolean;
   isSelected: boolean;
@@ -364,8 +373,15 @@ function BattleCard({
   return (
     <article
       className={[
-        "h-[305px] min-w-0 rounded-[20px] transition-opacity duration-200",
-        isInactive ? "opacity-50" : "opacity-100",
+        "relative h-[305px] min-w-0 rounded-[20px] transition-[opacity,transform,filter] duration-300",
+        isCelebrating && isSelected
+          ? "z-10 scale-[1.035] drop-shadow-[0_0_18px_rgba(255,0,2,0.72)]"
+          : "",
+        isCelebrating && isInactive
+          ? "scale-[0.96] opacity-20 saturate-0"
+          : isInactive
+            ? "opacity-50"
+            : "opacity-100",
       ].join(" ")}
       style={{ perspective: "1000px" }}
     >
