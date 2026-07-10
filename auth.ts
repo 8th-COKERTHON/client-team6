@@ -1,18 +1,30 @@
 import NextAuth from "next-auth";
+import type { JWT } from "next-auth/jwt";
 import Credentials from "next-auth/providers/credentials";
+
+const TOKEN_REFRESH_BUFFER_MS = 60 * 1000;
+
+type BackendTokenResponse = {
+  accessToken?: string;
+  expiresIn?: number;
+  refreshToken?: string;
+  tokenType?: string;
+};
 
 type BackendLoginResponse = {
   success?: boolean;
-  data?: {
-    accessToken?: string;
+  data?: BackendTokenResponse & {
     email?: string;
-    expiresIn?: number;
     name?: string;
     onboardingCompleted?: boolean;
     onboardingCompletedAt?: string;
-    refreshToken?: string;
-    tokenType?: string;
   };
+  message?: string;
+};
+
+type BackendRefreshResponse = {
+  success?: boolean;
+  data?: BackendTokenResponse;
   message?: string;
 };
 
@@ -32,6 +44,22 @@ function getBooleanValue(value: unknown) {
 
 function getNumberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function getNumberClaim(payload: JwtPayload | null, keys: string[]) {
+  if (!payload) {
+    return null;
+  }
+
+  for (const key of keys) {
+    const value = getNumberValue(payload[key]);
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return null;
 }
 
 function getStringClaim(payload: JwtPayload | null, keys: string[]) {
@@ -76,6 +104,35 @@ function decodeJwtPayload(token: string) {
   }
 }
 
+function getAccessTokenExpiresAt(
+  accessToken?: string | null,
+  expiresIn?: number | null,
+) {
+  if (!accessToken) {
+    return null;
+  }
+
+  const exp = getNumberClaim(decodeJwtPayload(accessToken), ["exp"]);
+
+  if (exp) {
+    return exp * 1000;
+  }
+
+  if (expiresIn) {
+    return Date.now() + expiresIn * 1000;
+  }
+
+  return null;
+}
+
+function shouldRefreshAccessToken(expiresAt?: number | null) {
+  if (!expiresAt) {
+    return false;
+  }
+
+  return Date.now() >= expiresAt - TOKEN_REFRESH_BUFFER_MS;
+}
+
 function getLoginUrl() {
   if (process.env.AUTH_BACKEND_LOGIN_URL) {
     return process.env.AUTH_BACKEND_LOGIN_URL;
@@ -86,6 +143,70 @@ function getLoginUrl() {
   }
 
   return null;
+}
+
+function getRefreshUrl() {
+  if (process.env.AUTH_BACKEND_URL) {
+    return new URL("/api/v1/auth/refresh", process.env.AUTH_BACKEND_URL).toString();
+  }
+
+  return null;
+}
+
+async function refreshAccessToken(token: JWT) {
+  const refreshToken = getStringValue(token.refreshToken);
+  const refreshUrl = getRefreshUrl();
+
+  if (!refreshToken || !refreshUrl) {
+    return {
+      ...token,
+      refreshError: "RefreshAccessTokenError",
+    };
+  }
+
+  try {
+    const response = await fetch(refreshUrl, {
+      body: JSON.stringify({ refreshToken }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+    const data = (await response
+      .json()
+      .catch(() => ({}))) as BackendRefreshResponse;
+    const nextAccessToken = getStringValue(data.data?.accessToken);
+
+    if (!response.ok || data.success === false || !nextAccessToken) {
+      return {
+        ...token,
+        refreshError: "RefreshAccessTokenError",
+      };
+    }
+
+    const nextExpiresIn = getNumberValue(data.data?.expiresIn);
+
+    return {
+      ...token,
+      accessToken: nextAccessToken,
+      accessTokenExpiresAt: getAccessTokenExpiresAt(
+        nextAccessToken,
+        nextExpiresIn,
+      ),
+      expiresIn: nextExpiresIn ?? token.expiresIn,
+      refreshError: null,
+      refreshToken: getStringValue(data.data?.refreshToken) ?? refreshToken,
+      tokenType:
+        getStringValue(data.data?.tokenType) ??
+        getStringValue(token.tokenType) ??
+        "Bearer",
+    };
+  } catch {
+    return {
+      ...token,
+      refreshError: "RefreshAccessTokenError",
+    };
+  }
 }
 
 export const {
@@ -145,10 +266,15 @@ export const {
         ]);
         const tokenId = getStringClaim(payload, ["sub", "id", "userId"]);
         const sessionName = responseName ?? tokenName;
+        const expiresIn = getNumberValue(data.data.expiresIn);
 
         return {
           accessToken: data.data.accessToken,
-          expiresIn: getNumberValue(data.data.expiresIn),
+          accessTokenExpiresAt: getAccessTokenExpiresAt(
+            data.data.accessToken,
+            expiresIn,
+          ),
+          expiresIn,
           id: tokenId ?? sessionEmail,
           email: sessionEmail,
           name: sessionName === sessionEmail ? null : sessionName,
@@ -161,9 +287,11 @@ export const {
     }),
   ],
   callbacks: {
-    jwt({ token, user, trigger, session }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.accessToken = user.accessToken ?? token.accessToken;
+        token.accessTokenExpiresAt =
+          user.accessTokenExpiresAt ?? token.accessTokenExpiresAt;
         token.sub = user.id ?? token.sub;
         token.email = user.email ?? token.email;
         token.expiresIn = user.expiresIn ?? token.expiresIn;
@@ -174,6 +302,7 @@ export const {
           user.onboardingCompletedAt ?? token.onboardingCompletedAt;
         token.refreshToken = user.refreshToken ?? token.refreshToken;
         token.tokenType = user.tokenType ?? token.tokenType;
+        token.refreshError = null;
       }
 
       if (trigger === "update") {
@@ -191,18 +320,32 @@ export const {
           onboardingCompletedAt ?? token.onboardingCompletedAt;
       }
 
+      if (!getNumberValue(token.accessTokenExpiresAt)) {
+        token.accessTokenExpiresAt =
+          getAccessTokenExpiresAt(
+            getStringValue(token.accessToken),
+            getNumberValue(token.expiresIn),
+          ) ?? token.accessTokenExpiresAt;
+      }
+
+      if (shouldRefreshAccessToken(getNumberValue(token.accessTokenExpiresAt))) {
+        return refreshAccessToken(token);
+      }
+
       return token;
     },
     session({ session, token }) {
       session.user = {
         ...session.user,
         accessToken: getStringValue(token.accessToken),
+        accessTokenExpiresAt: getNumberValue(token.accessTokenExpiresAt),
         expiresIn: getNumberValue(token.expiresIn),
         id: getStringValue(token.sub) ?? session.user?.id,
         email: getStringValue(token.email) ?? session.user?.email,
         name: getStringValue(token.name) ?? session.user?.name,
         onboardingCompleted: getBooleanValue(token.onboardingCompleted),
         onboardingCompletedAt: getStringValue(token.onboardingCompletedAt),
+        refreshError: getStringValue(token.refreshError),
         refreshToken: getStringValue(token.refreshToken),
         tokenType: getStringValue(token.tokenType),
       };
