@@ -56,6 +56,7 @@ export function SessionRing({
   );
   const [message, setMessage] = useState("");
   const [pendingWinnerId, setPendingWinnerId] = useState<number | null>(null);
+  const [isHistoryRestored, setIsHistoryRestored] = useState(false);
   const currentMatch = progress.nextMatch ?? null;
 
   useEffect(() => {
@@ -70,14 +71,18 @@ export function SessionRing({
           ),
         );
       }
+
+      setIsHistoryRestored(true);
     }, 0);
 
     return () => window.clearTimeout(timer);
   }, [initialProgress]);
 
   useEffect(() => {
-    writeSessionHistory(history);
-  }, [history]);
+    if (isHistoryRestored) {
+      writeSessionHistory(history);
+    }
+  }, [history, isHistoryRestored]);
 
   async function confirmWinner(winnerEpisodeId: number) {
     if (!currentMatch || pendingWinnerId !== null) {
@@ -141,6 +146,10 @@ export function SessionRing({
       return registerProgressEpisodes(nextHistory, nextProgress);
     });
     setProgress(nextProgress);
+  }
+
+  if (isSessionComplete(progress) && !isHistoryRestored) {
+    return <SessionHistoryLoading />;
   }
 
   if (isSessionComplete(progress)) {
@@ -671,6 +680,14 @@ function SessionWaiting({ sessionId }: { sessionId: number }) {
           다시 확인
         </Link>
       </div>
+    </main>
+  );
+}
+
+function SessionHistoryLoading() {
+  return (
+    <main className="flex min-h-svh items-center justify-center bg-[#12161b] px-4 text-center text-white">
+      <p className="text-base font-semibold">매치 결과를 불러오고 있습니다.</p>
     </main>
   );
 }
