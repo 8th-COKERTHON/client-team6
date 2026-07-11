@@ -6,6 +6,7 @@ import {
   saveOnboardingEpisode,
   suggestOnboardingEpisodeTitle,
 } from "@/app/onboarding/actions";
+import { startOnboardingPlacementAction } from "@/app/ring/actions";
 import { MobileHomeIndicator } from "@/components/auth/auth-screen";
 import { ActionButton } from "@/components/ui/action-button";
 import { TextArea } from "@/components/ui/text-area";
@@ -20,14 +21,24 @@ type EpisodeDraft = {
   title: string;
 };
 
+export type OnboardingInitialEpisode = EpisodeDraft;
+
 const EPISODE_COUNT = 5;
 
-export function OnboardingFlow() {
+export function OnboardingFlow({
+  initialEpisodes = [],
+}: {
+  initialEpisodes?: OnboardingInitialEpisode[];
+}) {
   const router = useRouter();
-  const [step, setStep] = useState<OnboardingStep>("welcome");
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [step, setStep] = useState<OnboardingStep>(() =>
+    initialEpisodes.length > 0 ? "episodes" : "welcome",
+  );
   const [episodes, setEpisodes] = useState<EpisodeDraft[]>(() =>
-    Array.from({ length: EPISODE_COUNT }, createEpisodeDraft),
+    createInitialEpisodes(initialEpisodes),
+  );
+  const [activeIndex, setActiveIndex] = useState(() =>
+    getInitialActiveIndex(initialEpisodes),
   );
   const [message, setMessage] = useState("");
   const [isSaving, startSavingTransition] = useTransition();
@@ -92,8 +103,12 @@ export function OnboardingFlow() {
     setMessage("");
 
     startSavingTransition(async () => {
+      if (activeEpisode.episodeId && isLastEpisode) {
+        await beginPlacement();
+        return;
+      }
+
       const result = await saveOnboardingEpisode({
-        completeOnboarding: isLastEpisode,
         content: activeEpisode.content,
         date: activeEpisode.date,
         title: activeEpisode.title,
@@ -112,13 +127,26 @@ export function OnboardingFlow() {
         ),
       );
 
-      if (result.completed) {
-        router.replace("/ring");
+      if (isLastEpisode) {
+        await beginPlacement();
         return;
       }
 
       setActiveIndex((currentIndex) => currentIndex + 1);
     });
+  }
+
+  async function beginPlacement() {
+    const result = await startOnboardingPlacementAction();
+
+    if (!result.success || !result.progress?.sessionId) {
+      setMessage(result.message);
+      return;
+    }
+
+    router.replace(
+      `/ring?sessionId=${result.progress.sessionId}&flow=onboarding`,
+    );
   }
 
   return (
@@ -280,7 +308,9 @@ function EpisodeRegistrationScreen({
           type="button"
         >
           {isPending
-            ? "등록 중..."
+            ? isLastEpisode
+              ? "배치전 준비 중..."
+              : "등록 중..."
             : isLastEpisode
               ? "등록 완료하고 배치전 시작하기"
               : "다음 에피소드 등록하기"}
@@ -444,6 +474,26 @@ function createEpisodeDraft(): EpisodeDraft {
     date: formatDateForDisplay(new Date()),
     title: "",
   };
+}
+
+function createInitialEpisodes(initialEpisodes: OnboardingInitialEpisode[]) {
+  return Array.from({ length: EPISODE_COUNT }, (_, index) =>
+    initialEpisodes[index]
+      ? { ...initialEpisodes[index] }
+      : createEpisodeDraft(),
+  );
+}
+
+function getInitialActiveIndex(initialEpisodes: OnboardingInitialEpisode[]) {
+  const firstIncompleteIndex = initialEpisodes.findIndex(
+    (episode) => !episode.episodeId,
+  );
+
+  if (firstIncompleteIndex >= 0) {
+    return firstIncompleteIndex;
+  }
+
+  return Math.min(initialEpisodes.length, EPISODE_COUNT - 1);
 }
 
 function isEpisodeReady(episode: EpisodeDraft) {

@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import {
   createEntry,
   suggestEntryTitle,
   type CreateEntryResult,
 } from "@/app/episodes/new/actions";
+import { startEpisodePlacementAction } from "@/app/ring/actions";
 import { MobileHomeIndicator } from "@/components/auth/auth-screen";
 import { ActionButton, ActionButtonLink } from "@/components/ui/action-button";
 import { TextArea } from "@/components/ui/text-area";
@@ -195,7 +197,31 @@ function EntryCompleteScreen({
 }: {
   completion: EntryCompletion;
 }) {
+  const router = useRouter();
   const canStartMatch = completion.canStartMatch === true;
+  const [message, setMessage] = useState("");
+  const [isStarting, startTransition] = useTransition();
+
+  function startPlacement() {
+    if (!completion.episodeId) {
+      setMessage("에피소드 정보가 올바르지 않습니다.");
+      return;
+    }
+
+    setMessage("");
+    startTransition(async () => {
+      const result = await startEpisodePlacementAction(completion.episodeId!);
+
+      if (!result.success || !result.progress?.sessionId) {
+        setMessage(result.message);
+        return;
+      }
+
+      router.push(
+        `/ring?sessionId=${result.progress.sessionId}&flow=placement&episodeId=${completion.episodeId}`,
+      );
+    });
+  }
 
   return (
     <main className="min-h-svh bg-[#12161b] text-white">
@@ -205,21 +231,38 @@ function EntryCompleteScreen({
             <div className="flex size-[120px] items-center justify-center rounded-full bg-[#ff0002] text-white">
               <CheckIcon />
             </div>
-            <h1 className="mt-8 text-xl font-semibold leading-[1.4] tracking-[-0.01em] text-white">
+            <h1 className="mt-8 text-xl font-semibold leading-[1.4] text-white">
               에피소드 등록이 완료되었습니다.
             </h1>
-            <p className="mt-2 max-w-[292px] text-sm font-medium leading-[1.6] tracking-[-0.01em] text-[#b1b9c5]">
+            <p className="mt-2 max-w-[292px] text-sm font-medium leading-[1.6] text-[#b1b9c5]">
               {canStartMatch
                 ? "랜덤으로 뽑힌 기존 에피소드 5개와 데뷔 매치(Debut Match)를 진행해 보세요."
                 : "등록한 에피소드는 홈과 기록실에서 다시 확인할 수 있어요."}
             </p>
+            {message ? (
+              <p className="mt-4 text-sm font-medium text-[#ff5b5d]" role="alert">
+                {message}
+              </p>
+            ) : null}
           </div>
         </div>
 
         <div className="px-4 pt-3.5">
-          <ActionButtonLink href={canStartMatch ? "/ring" : "/"}>
-            {canStartMatch ? "바로 매치 시작" : "홈으로 이동"}
-          </ActionButtonLink>
+          {canStartMatch ? (
+            <>
+              <ActionButton disabled={isStarting} onClick={startPlacement}>
+                {isStarting ? "매치 준비 중..." : "바로 매치 시작"}
+              </ActionButton>
+              <Link
+                className="mt-3 flex h-10 items-center justify-center text-sm font-semibold text-[#b1b9c5]"
+                href="/"
+              >
+                나중에 하기
+              </Link>
+            </>
+          ) : (
+            <ActionButtonLink href="/">홈으로 이동</ActionButtonLink>
+          )}
           <MobileHomeIndicator />
         </div>
       </section>

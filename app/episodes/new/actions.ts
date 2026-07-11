@@ -1,28 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/auth";
-
-type ApiResponse<T> = {
-  code?: string;
-  data?: T;
-  message?: string;
-  success?: boolean;
-};
-
-type CreateEpisodeResponse = {
-  availableEpisodeCount?: number;
-  canStartMatch?: boolean;
-  createdAt?: string;
-  currentTitle?: string;
-  episodeId?: number;
-  status?: string;
-  titleScore?: number;
-};
-
-type TitleSuggestionResponse = {
-  title?: string;
-};
+import {
+  createEpisode,
+  getBackendErrorMessage,
+  suggestEpisodeTitle,
+} from "@/lib/backend-api";
 
 export type CreateEntryInput = {
   content: string;
@@ -50,48 +33,24 @@ export async function suggestEntryTitle(
   const normalizedContent = content.trim();
 
   if (!normalizedContent) {
-    return {
-      message: "내용을 먼저 입력해주세요.",
-      success: false,
-    };
+    return { message: "내용을 먼저 입력해주세요.", success: false };
   }
 
   if (normalizedContent.length > 5000) {
-    return {
-      message: "내용은 5000자 이하로 입력해주세요.",
-      success: false,
-    };
-  }
-
-  const request = await createBackendRequest("/api/v1/episodes/title-suggestions");
-
-  if (!request.success) {
-    return request;
+    return { message: "내용은 5000자 이하로 입력해주세요.", success: false };
   }
 
   try {
-    const response = await fetch(request.url, {
-      body: JSON.stringify({ content: normalizedContent }),
-      headers: request.headers,
-      method: "POST",
-    });
-    const data = await readApiResponse<TitleSuggestionResponse>(response);
+    const data = await suggestEpisodeTitle(normalizedContent);
 
-    if (!response.ok || data.success === false || !data.data?.title) {
-      return {
-        message: data.message || "AI 제목을 생성하지 못했습니다.",
-        success: false,
-      };
+    if (!data.title?.trim()) {
+      return { message: "AI 제목을 생성하지 못했습니다.", success: false };
     }
 
+    return { message: "", success: true, title: data.title };
+  } catch (error) {
     return {
-      message: "",
-      success: true,
-      title: data.data.title,
-    };
-  } catch {
-    return {
-      message: "백엔드에 연결하지 못했습니다.",
+      message: getBackendErrorMessage(error, "AI 제목을 생성하지 못했습니다."),
       success: false,
     };
   }
@@ -107,17 +66,11 @@ export async function createEntry({
   const normalizedTitle = title.trim();
 
   if (!normalizedContent) {
-    return {
-      message: "내용을 입력해주세요.",
-      success: false,
-    };
+    return { message: "내용을 입력해주세요.", success: false };
   }
 
   if (normalizedContent.length > 5000) {
-    return {
-      message: "내용은 5000자 이하로 입력해주세요.",
-      success: false,
-    };
+    return { message: "내용은 5000자 이하로 입력해주세요.", success: false };
   }
 
   if (!normalizedTitle) {
@@ -128,10 +81,7 @@ export async function createEntry({
   }
 
   if (normalizedTitle.length > 150) {
-    return {
-      message: "제목은 150자 이하로 입력해주세요.",
-      success: false,
-    };
+    return { message: "제목은 150자 이하로 입력해주세요.", success: false };
   }
 
   if (!normalizedDate) {
@@ -141,91 +91,30 @@ export async function createEntry({
     };
   }
 
-  const request = await createBackendRequest("/api/v1/episodes");
-
-  if (!request.success) {
-    return request;
-  }
-
   try {
-    const response = await fetch(request.url, {
-      body: JSON.stringify({
-        content: normalizedContent,
-        episodeDate: normalizedDate,
-        title: normalizedTitle,
-      }),
-      headers: request.headers,
-      method: "POST",
+    const data = await createEpisode({
+      content: normalizedContent,
+      episodeDate: normalizedDate,
+      title: normalizedTitle,
     });
-    const data = await readApiResponse<CreateEpisodeResponse>(response);
-
-    if (!response.ok || data.success === false || !data.data?.episodeId) {
-      return {
-        message: data.message || "에피소드를 등록하지 못했습니다.",
-        success: false,
-      };
-    }
 
     revalidatePath("/");
     revalidatePath("/episodes/new");
     revalidatePath("/ring");
 
     return {
-      availableEpisodeCount: data.data.availableEpisodeCount,
-      canStartMatch: data.data.canStartMatch,
-      episodeId: data.data.episodeId,
+      availableEpisodeCount: data.availableEpisodeCount,
+      canStartMatch: data.canStartMatch,
+      episodeId: data.episodeId,
       message: "",
       success: true,
     };
-  } catch {
+  } catch (error) {
     return {
-      message: "백엔드에 연결하지 못했습니다.",
+      message: getBackendErrorMessage(error, "에피소드를 등록하지 못했습니다."),
       success: false,
     };
   }
-}
-
-async function createBackendRequest(path: string) {
-  const session = await auth();
-  const accessToken = session?.user?.accessToken;
-  const backendUrl = getBackendUrl(path);
-
-  if (!session?.user || !accessToken) {
-    return {
-      message: "로그인이 필요합니다.",
-      success: false as const,
-    };
-  }
-
-  if (!backendUrl) {
-    return {
-      message: "백엔드 URL이 설정되어 있지 않습니다.",
-      success: false as const,
-    };
-  }
-
-  const tokenType = session.user.tokenType || "Bearer";
-
-  return {
-    headers: {
-      Authorization: `${tokenType} ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    success: true as const,
-    url: backendUrl,
-  };
-}
-
-async function readApiResponse<T>(response: Response) {
-  return (await response.json().catch(() => ({}))) as ApiResponse<T>;
-}
-
-function getBackendUrl(path: string) {
-  if (!process.env.AUTH_BACKEND_URL) {
-    return null;
-  }
-
-  return new URL(path, process.env.AUTH_BACKEND_URL).toString();
 }
 
 function normalizeEpisodeDate(value: string) {
