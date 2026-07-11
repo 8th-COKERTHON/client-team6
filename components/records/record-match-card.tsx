@@ -1,9 +1,20 @@
-import type {
-  MatchEpisodeSnapshot,
-  MatchHistoryRecord,
-} from "@/app/records/mock-data";
+import Link from "next/link";
+import type { MatchHistoryItemResponse } from "@/lib/backend-types";
 
-export function RecordMatchCard({ record }: { record: MatchHistoryRecord }) {
+export type MatchEpisodeSnapshot = {
+  episodeDate: string;
+  episodeId: number;
+  title: string;
+};
+
+export type RecordMatchCardData = {
+  episodeA: MatchEpisodeSnapshot;
+  episodeB: MatchEpisodeSnapshot;
+  matchId: number;
+  winnerEpisodeId: number;
+};
+
+export function RecordMatchCard({ record }: { record: RecordMatchCardData }) {
   return (
     <article className="grid min-h-[4.625rem] w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 rounded-2xl bg-[linear-gradient(102deg,#292e38_0%,rgba(41,46,56,0.6)_100%)] px-5 py-3.5">
       <MatchEpisodeSide
@@ -22,6 +33,25 @@ export function RecordMatchCard({ record }: { record: MatchHistoryRecord }) {
   );
 }
 
+export function toRecordMatch(
+  record: MatchHistoryItemResponse,
+): RecordMatchCardData {
+  return {
+    episodeA: {
+      episodeDate: record.episodeADate,
+      episodeId: record.episodeAId,
+      title: record.episodeATitle,
+    },
+    episodeB: {
+      episodeDate: record.episodeBDate,
+      episodeId: record.episodeBId,
+      title: record.episodeBTitle,
+    },
+    matchId: record.matchId,
+    winnerEpisodeId: record.winnerEpisodeId,
+  };
+}
+
 function MatchEpisodeSide({
   align = "left",
   episode,
@@ -34,7 +64,13 @@ function MatchEpisodeSide({
   const isRight = align === "right";
 
   return (
-    <div className={["min-w-0", isRight ? "text-right" : "text-left"].join(" ")}>
+    <Link
+      className={[
+        "min-w-0 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ff0002]",
+        isRight ? "text-right" : "text-left",
+      ].join(" ")}
+      href={`/episodes/${episode.episodeId}`}
+    >
       <h2 className="truncate text-base font-semibold leading-[1.4] text-[#f0f0f2]">
         {episode.title}
       </h2>
@@ -54,18 +90,11 @@ function MatchEpisodeSide({
           {isWinner ? "승" : "패"}
         </span>
       </p>
-    </div>
+    </Link>
   );
 }
 
 function formatDateLabel(value: string) {
   const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
-
-  if (!match) {
-    return value;
-  }
-
-  const [, year, month, day] = match;
-
-  return `${year}.${month}.${day}`;
+  return match ? `${match[1]}.${match[2]}.${match[3]}` : value;
 }

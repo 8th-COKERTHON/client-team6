@@ -39,27 +39,41 @@ export function RecordsTopBar({ title }: { title: string }) {
   );
 }
 
-export function RecordsSearchBox() {
+export function RecordsSearchBox({
+  action = "/records",
+  query = "",
+}: {
+  action?: string;
+  query?: string;
+}) {
   return (
-    <div
-      aria-label="기록실 검색"
+    <form
+      action={action}
       className="flex h-[3.25rem] w-full items-center justify-between rounded-xl bg-[#292e38] px-4 text-[#b1b9c5]"
       role="search"
     >
-      <div className="flex min-w-0 items-center gap-1.5">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5">
         <SearchIcon className="size-6 shrink-0" />
-        <span className="truncate text-base font-medium leading-[1.4]">
-          제목이나 내용으로 검색해보세요.
-        </span>
+        <label className="sr-only" htmlFor={`records-query-${action}`}>
+          기록실 검색
+        </label>
+        <input
+          className="min-w-0 flex-1 bg-transparent text-base font-medium leading-[1.4] text-white outline-none placeholder:text-[#b1b9c5]"
+          defaultValue={query}
+          id={`records-query-${action}`}
+          name="query"
+          placeholder="제목이나 내용으로 검색해보세요."
+          type="search"
+        />
       </div>
       <button
-        aria-label="기록실 새로고침"
+        aria-label="기록실 검색"
         className="ml-3 flex size-8 shrink-0 items-center justify-center rounded-full text-[#b1b9c5] transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff0002]"
         type="button"
       >
         <RefreshIcon className="size-5" />
       </button>
-    </div>
+    </form>
   );
 }
 
