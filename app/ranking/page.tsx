@@ -14,15 +14,14 @@ import {
   type RankingEntry,
 } from "@/components/ranking/ranking-list-card";
 import {
-  getAllRankings,
+  getAllEpisodes,
   getChampionHistory,
-  getRankings,
+  getRankingsForEpisodeIds,
   searchAllEpisodes,
 } from "@/lib/backend-api";
 import type {
   ChampionHistoryItemResponse,
   RankingItemResponse,
-  RankingListResponse,
 } from "@/lib/backend-types";
 import appIcon from "@/public/icons/mme-icon-192.png";
 
@@ -53,63 +52,63 @@ export default async function RankingPage({ searchParams }: RankingPageProps) {
   const queryParams = await searchParams;
   const query = getFirstValue(queryParams.query)?.trim() ?? "";
   const page = parsePage(queryParams.page);
-  const [championHistoryResult, topRankingsResult, rankingResult] =
+  const [episodesResult, championHistoryResult, searchedEpisodesResult] =
     await Promise.allSettled([
+      getAllEpisodes(),
       getChampionHistory(undefined, 50),
-      getRankings(0, 50),
-      loadDisplayedRankings(query, page),
+      query ? searchAllEpisodes(query) : Promise.resolve(null),
     ]);
+  const episodes = valueOr(episodesResult, []);
+  const episodeIds = new Set(episodes.map((episode) => episode.episodeId));
+  const rankingItems = await loadPersonalRankings(episodeIds);
+  const personalRankings = createPersonalRankings(rankingItems);
+  const searchedEpisodes = valueOr(searchedEpisodesResult, null);
+  const searchedEpisodeIds = searchedEpisodes
+    ? new Set(searchedEpisodes.map((episode) => episode.episodeId))
+    : null;
+  const filteredRankings = searchedEpisodeIds
+    ? personalRankings.filter((ranking) =>
+        searchedEpisodeIds.has(ranking.episodeId),
+      )
+    : personalRankings;
+  const start = page * PAGE_SIZE;
+  const displayedRankings = filteredRankings.slice(start, start + PAGE_SIZE);
   const championHistory = valueOr(
     championHistoryResult,
     [] as ChampionHistoryItemResponse[],
-  );
-  const topRankings = valueOr(topRankingsResult, createEmptyRankingList());
-  const display = valueOr(rankingResult, {
-    hasNext: false,
-    items: [] as RankingItemResponse[],
-    totalElements: 0,
-  });
-  const champions = createChampionSummary(championHistory, topRankings.items);
+  ).filter((champion) => episodeIds.has(champion.episodeId));
+  const champions = createChampionSummary(championHistory, personalRankings);
 
   return (
     <RankingScreen
       champions={champions}
-      entries={display.items.map(toRankingEntry)}
-      hasNext={display.hasNext}
+      entries={displayedRankings.map(toRankingEntry)}
+      hasNext={start + PAGE_SIZE < filteredRankings.length}
       page={page}
       query={query}
-      totalElements={display.totalElements}
+      totalElements={filteredRankings.length}
     />
   );
 }
 
-async function loadDisplayedRankings(query: string, page: number) {
-  if (!query) {
-    const response = await getRankings(page, PAGE_SIZE);
-    return {
-      hasNext: response.hasNext,
-      items: response.items,
-      totalElements: response.totalElements,
-    };
+async function loadPersonalRankings(episodeIds: Set<number>) {
+  try {
+    return await getRankingsForEpisodeIds(episodeIds);
+  } catch {
+    return [];
   }
+}
 
-  const [searchedEpisodes, rankings] = await Promise.all([
-    searchAllEpisodes(query),
-    getAllRankings(),
-  ]);
-  const episodeIds = new Set(
-    searchedEpisodes.map((episode) => episode.episodeId),
-  );
-  const matchedRankings = rankings.filter((ranking) =>
-    episodeIds.has(ranking.episodeId),
-  );
-  const start = page * PAGE_SIZE;
-
-  return {
-    hasNext: start + PAGE_SIZE < matchedRankings.length,
-    items: matchedRankings.slice(start, start + PAGE_SIZE),
-    totalElements: matchedRankings.length,
-  };
+function createPersonalRankings(rankings: RankingItemResponse[]) {
+  return rankings
+    .slice()
+    .sort(
+      (left, right) =>
+        right.score - left.score ||
+        left.rank - right.rank ||
+        left.episodeId - right.episodeId,
+    )
+    .map((ranking, index) => ({ ...ranking, rank: index + 1 }));
 }
 
 function RankingScreen({
@@ -347,10 +346,6 @@ function getFirstValue(value?: string | string[]) {
 
 function valueOr<T>(result: PromiseSettledResult<T>, fallback: T) {
   return result.status === "fulfilled" ? result.value : fallback;
-}
-
-function createEmptyRankingList(): RankingListResponse {
-  return { hasNext: false, items: [], page: 0, size: 50, totalElements: 0 };
 }
 
 function SearchIcon(props: SVGProps<SVGSVGElement>) {

@@ -78,6 +78,30 @@ export async function getEpisodes(options: {
   );
 }
 
+export async function getAllEpisodes(maxPages = 100) {
+  const items: EpisodeListResponse["items"] = [];
+  const seenCursors = new Set<string>();
+  let cursor: string | undefined;
+
+  for (let page = 0; page < maxPages; page += 1) {
+    const response = await getEpisodes({ cursor, size: 50 });
+    items.push(...response.items);
+
+    if (!response.hasNext || !response.nextCursor) {
+      break;
+    }
+
+    if (seenCursors.has(response.nextCursor)) {
+      break;
+    }
+
+    seenCursors.add(response.nextCursor);
+    cursor = response.nextCursor;
+  }
+
+  return items;
+}
+
 export async function getEpisodeDetail(episodeId: number) {
   return backendRequest<EpisodeDetailResponse>(
     `/api/v1/episodes/${episodeId}`,
@@ -161,6 +185,34 @@ export async function getRankings(page = 0, size = 20) {
   return backendRequest<RankingListResponse>(
     withQuery("/api/v1/rankings", { page, size }),
   );
+}
+
+export async function getRankingsForEpisodeIds(
+  episodeIds: Iterable<number>,
+  maxPages = 200,
+) {
+  const targetIds = new Set(episodeIds);
+  const matchedItems = new Map<number, RankingListResponse["items"][number]>();
+
+  if (targetIds.size === 0) {
+    return [];
+  }
+
+  for (let page = 0; page < maxPages; page += 1) {
+    const response = await getRankings(page, 50);
+
+    response.items.forEach((item) => {
+      if (targetIds.has(item.episodeId)) {
+        matchedItems.set(item.episodeId, item);
+      }
+    });
+
+    if (matchedItems.size >= targetIds.size || !response.hasNext) {
+      break;
+    }
+  }
+
+  return Array.from(matchedItems.values());
 }
 
 export async function getAllRankings(maxPages = 20) {
