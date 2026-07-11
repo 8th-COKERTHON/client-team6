@@ -18,7 +18,7 @@ export type SessionHistory = {
   completedMatches: number;
   episodeRank?: number;
   episodes: Record<string, SessionHistoryEpisode>;
-  flow: "onboarding" | "placement" | "show";
+  flow: "direct" | "onboarding" | "placement" | "show";
   placementEpisodeId?: number;
   sessionId: number;
   totalMatches: number;

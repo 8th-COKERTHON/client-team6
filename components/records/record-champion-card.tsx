@@ -9,8 +9,8 @@ type ChampionScope = "all-time" | "annual" | "monthly";
 
 export type RecordChampionCardData = {
   episodeId: number;
-  scope: ChampionScope;
-  scopeEnglishLabel: string;
+  scope: ChampionScope | null;
+  scopeEnglishLabel?: string;
   scopeLabel: string;
   score: number;
   title: string;
@@ -36,7 +36,10 @@ export function RecordChampionCard({
     >
       <div className="relative z-10 min-w-0 max-w-[66%]">
         <p className="truncate text-[13px] font-medium leading-[1.4] text-[#b1b9c5]">
-          {champion.scopeLabel} ({champion.scopeEnglishLabel})
+          {champion.scopeLabel}
+          {champion.scopeEnglishLabel
+            ? ` (${champion.scopeEnglishLabel})`
+            : ""}
         </p>
         <h2 className="mt-1.5 truncate text-lg font-semibold leading-[1.4] text-white">
           {champion.title}
@@ -45,19 +48,21 @@ export function RecordChampionCard({
           {champion.score}점
         </p>
       </div>
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute right-4 top-1/2 h-[46px] w-[29%] min-w-[5.75rem] -translate-y-1/2 overflow-hidden"
-      >
-        <Image
-          alt=""
-          className="object-contain object-center"
-          fill
-          priority={priority}
-          sizes="98px"
-          src={BELT_IMAGES[champion.scope]}
-        />
-      </div>
+      {champion.scope ? (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute right-4 top-1/2 h-[46px] w-[29%] min-w-[5.75rem] -translate-y-1/2 overflow-hidden"
+        >
+          <Image
+            alt=""
+            className="object-contain object-center"
+            fill
+            priority={priority}
+            sizes="98px"
+            src={BELT_IMAGES[champion.scope]}
+          />
+        </div>
+      ) : null}
     </Link>
   );
 }
@@ -75,14 +80,14 @@ export function toRecordChampion(
   return {
     episodeId: champion.episodeId,
     scope,
-    scopeEnglishLabel: labels[scope][1],
-    scopeLabel: labels[scope][0],
+    scopeEnglishLabel: scope ? labels[scope][1] : undefined,
+    scopeLabel: scope ? labels[scope][0] : champion.championTitle,
     score: champion.titleScore,
     title: champion.episodeTitle,
   };
 }
 
-function getChampionScope(value: string): ChampionScope {
+function getChampionScope(value: string): ChampionScope | null {
   const normalized = value.toUpperCase();
   if (normalized.includes("MONTH") || value.includes("월간")) return "monthly";
   if (
@@ -92,5 +97,8 @@ function getChampionScope(value: string): ChampionScope {
   ) {
     return "annual";
   }
-  return "all-time";
+  if (normalized.includes("ALL") || value.includes("올타임")) {
+    return "all-time";
+  }
+  return null;
 }

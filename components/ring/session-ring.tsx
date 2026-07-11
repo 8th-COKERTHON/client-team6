@@ -415,7 +415,7 @@ function createStandaloneHistory(match: ActiveMatchDto | null): SessionHistory {
     return {
       completedMatches: 0,
       episodes: {},
-      flow: "placement",
+      flow: "direct",
       sessionId: 0,
       totalMatches: 0,
       type: "MATCH",
@@ -429,7 +429,7 @@ function createStandaloneHistory(match: ActiveMatchDto | null): SessionHistory {
       [match.episodeA.episodeId]: toHistoryEpisode(match.episodeA),
       [match.episodeB.episodeId]: toHistoryEpisode(match.episodeB),
     },
-    flow: "placement",
+    flow: "direct",
     sessionId: 0,
     totalMatches: match.totalRounds,
     type: "MATCH",
