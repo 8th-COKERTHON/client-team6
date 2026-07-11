@@ -2,37 +2,36 @@ import Image from "next/image";
 import Link from "next/link";
 import { BottomNavigation } from "@/components/bottom-navigation";
 import { LogoutDialog } from "@/components/home/logout-dialog";
-
-type SignedInHomeUser = {
-  email?: string | null;
-  name?: string | null;
-};
+import {
+  EpisodePlacementCard,
+  ShowScheduleCard,
+  type ShowScheduleCardData,
+} from "@/components/home/show-schedule-card";
+import type {
+  AvailableShowResponse,
+  EpisodeListItemResponse,
+  HomeResponse,
+  OnboardingStatusResponse,
+  UpcomingEventResponse,
+} from "@/lib/backend-types";
 
 type SignedInHomeProps = {
-  user: SignedInHomeUser;
+  home: HomeResponse;
+  onboardingStatus: OnboardingStatusResponse | null;
+  pendingEpisode?: EpisodeListItemResponse;
+  shows: AvailableShowResponse[];
 };
 
-const UPCOMING_MATCHES = [
-  {
-    dateLabel: "2026.07.10",
-    href: "/ring",
-    kind: "Weekly Show",
-    remainingDays: 4,
-    title: "Monday Night Rivals",
-    variant: "solid",
-  },
-  {
-    dateLabel: "2026.07.10",
-    href: "/ring",
-    kind: "Monthly Show",
-    remainingDays: 4,
-    title: "Monthly Royal Rumble",
-    variant: "fade",
-  },
-] as const;
-
-export function SignedInHome({ user }: SignedInHomeProps) {
-  void user;
+export function SignedInHome({
+  home,
+  onboardingStatus,
+  pendingEpisode,
+  shows,
+}: SignedInHomeProps) {
+  const activeShow = shows.find(
+    (show) =>
+      show.sessionId && !show.status.toUpperCase().includes("COMPLETE"),
+  );
 
   return (
     <main className="min-h-svh bg-[#12161b] text-white">
@@ -40,9 +39,16 @@ export function SignedInHome({ user }: SignedInHomeProps) {
         <HomeBackground />
         <HomeHeader />
 
-        <section className="relative z-10 px-4 pt-6 pb-[calc(7.625rem+env(safe-area-inset-bottom))]">
-          <DailyEpisodeCard />
-          <UpcomingMatchSection />
+        <section className="relative z-10 px-4 pb-[calc(7.625rem+env(safe-area-inset-bottom))] pt-6">
+          <DailyEpisodeCard
+            activeShow={activeShow}
+            activePlacementSessionId={
+              onboardingStatus?.activePlacementSessionId
+            }
+            home={home}
+            pendingEpisode={pendingEpisode}
+          />
+          <UpcomingMatchSection homeEvents={home.upcomingEvents} shows={shows} />
         </section>
 
         <BottomNavigation />
@@ -72,7 +78,7 @@ function HomeHeader() {
     <header className="relative z-10 flex h-[calc(max(env(safe-area-inset-top),44px)+54px)] items-end justify-between px-4 pb-[9px]">
       <Link
         aria-label="홈"
-        className="relative flex size-9 items-center justify-center overflow-hidden rounded-[8.4px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ff0002]"
+        className="relative flex size-9 items-center justify-center overflow-hidden rounded-[8px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ff0002]"
         href="/"
       >
         <Image
@@ -90,7 +96,6 @@ function HomeHeader() {
           type="button"
         >
           <BellIcon />
-          <span className="absolute right-[1px] top-0 size-[5px] rounded-full bg-[#ff0002]" />
         </button>
         <LogoutDialog />
       </div>
@@ -98,92 +103,236 @@ function HomeHeader() {
   );
 }
 
-function DailyEpisodeCard() {
+function DailyEpisodeCard({
+  activePlacementSessionId,
+  activeShow,
+  home,
+  pendingEpisode,
+}: {
+  activePlacementSessionId?: number | null;
+  activeShow?: AvailableShowResponse;
+  home: HomeResponse;
+  pendingEpisode?: EpisodeListItemResponse;
+}) {
+  if (activePlacementSessionId) {
+    return (
+      <SessionResumeCard
+        href={`/ring?sessionId=${activePlacementSessionId}&flow=onboarding`}
+        progressLabel={`${home.availableEpisodeCount}개 에피소드`}
+        title="온보딩 배치전"
+      />
+    );
+  }
+
+  if (activeShow?.sessionId) {
+    return (
+      <SessionResumeCard
+        href={`/ring?sessionId=${activeShow.sessionId}&flow=show`}
+        progressLabel={`${activeShow.completedMatchCount}/${activeShow.matchCount} 매치`}
+        title={activeShow.title}
+      />
+    );
+  }
+
   return (
     <section>
-      <h1 className="text-base font-semibold leading-[1.4] tracking-[-0.01em] text-white">
-        오늘의 에피소드 등록
+      <h1 className="text-base font-semibold leading-[1.4] text-white">
+        {pendingEpisode ? "대기 중인 배치전" : "오늘의 에피소드 등록"}
+      </h1>
+      {pendingEpisode ? (
+        <EpisodePlacementCard
+          episodeId={pendingEpisode.episodeId}
+          title={pendingEpisode.title}
+        />
+      ) : home.todayEpisode ? (
+        <Link
+          className="group mt-4 flex min-h-[5.5625rem] items-center justify-between rounded-[20px] border border-[#ff0002]/30 bg-[#292e38] p-5"
+          href={`/episodes/${home.todayEpisode.episodeId}`}
+        >
+          <span className="min-w-0">
+            <span className="block truncate text-lg font-semibold leading-[1.4] text-white">
+              {home.todayEpisode.title}
+            </span>
+            <span className="mt-1.5 block text-[13px] font-medium leading-[1.4] text-[#b1b9c5]">
+              오늘 등록한 에피소드를 확인하세요.
+            </span>
+          </span>
+          <span className="ml-4 shrink-0 text-sm font-semibold text-white">
+            보기
+          </span>
+        </Link>
+      ) : (
+        <Link
+          className="group mt-4 flex min-h-[5.5625rem] items-center justify-between rounded-[20px] border border-[#ff0002]/30 bg-[#292e38] p-5 transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ff0002]"
+          href="/episodes/new"
+        >
+          <span className="min-w-0">
+            <span className="block text-lg font-semibold leading-[1.4] text-white">
+              지금 에피소드를 등록해 보세요.
+            </span>
+            <span className="mt-1.5 block text-[13px] font-medium leading-[1.4] text-[#b1b9c5]">
+              바로 매칭을 시작할 수 있어요.
+            </span>
+          </span>
+          <span className="ml-4 flex size-[42px] shrink-0 items-center justify-center rounded-[14px] bg-[#ff0002] text-white transition-transform group-hover:rotate-90">
+            <PlusIcon className="size-6" />
+          </span>
+        </Link>
+      )}
+    </section>
+  );
+}
+
+function SessionResumeCard({
+  href,
+  progressLabel,
+  title,
+}: {
+  href: string;
+  progressLabel: string;
+  title: string;
+}) {
+  return (
+    <section>
+      <h1 className="text-base font-semibold leading-[1.4] text-white">
+        진행 중인 매치
       </h1>
       <Link
-        className="group mt-4 flex min-h-[5.5625rem] items-center justify-between rounded-[20px] border border-[#ff0002]/30 bg-[#292e38] p-5 transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ff0002]"
-        href="/episodes/new"
+        className="mt-4 flex min-h-[5.5625rem] items-center justify-between rounded-[20px] border border-[#ff0002]/50 bg-[#292e38] p-5"
+        href={href}
       >
         <span className="min-w-0">
-          <span className="block truncate text-lg font-semibold leading-[1.4] tracking-[-0.01em] text-white">
-            지금 에피소드를 등록해 보세요.
+          <span className="block truncate text-lg font-semibold text-white">
+            {title}
           </span>
-          <span className="mt-1.5 block text-[13px] font-medium leading-[1.4] tracking-[-0.01em] text-[#b1b9c5]">
-            바로 매칭을 시작할 수 있어요.
+          <span className="mt-1 block text-[13px] font-medium text-[#b1b9c5]">
+            {progressLabel}
           </span>
         </span>
-        <span className="ml-4 flex size-[42px] shrink-0 items-center justify-center rounded-[14px] bg-[#ff0002] text-white transition-transform group-hover:rotate-90">
-          <PlusIcon className="size-6" />
+        <span className="ml-4 shrink-0 text-sm font-semibold text-white">
+          계속하기
         </span>
       </Link>
     </section>
   );
 }
 
-function UpcomingMatchSection() {
+function UpcomingMatchSection({
+  homeEvents,
+  shows,
+}: {
+  homeEvents: UpcomingEventResponse[];
+  shows: AvailableShowResponse[];
+}) {
+  const showSchedules = shows.map(toShowSchedule);
+  const showIds = new Set(shows.map((show) => show.showId));
+  const futureEvents = homeEvents.filter(
+    (event) => !showIds.has(event.eventId),
+  );
+
   return (
     <section className="mt-8">
-      <h2 className="text-base font-semibold leading-[1.4] tracking-[-0.01em] text-white">
+      <h2 className="text-base font-semibold leading-[1.4] text-white">
         예정된 매치 일정
       </h2>
-      <div className="mt-4 flex flex-col gap-3">
-        {UPCOMING_MATCHES.map((match) => (
-          <UpcomingMatchCard key={match.title} {...match} />
-        ))}
-      </div>
+      {showSchedules.length > 0 || futureEvents.length > 0 ? (
+        <div className="mt-4 flex flex-col gap-3">
+          {showSchedules.map((show) => (
+            <ShowScheduleCard
+              key={`${show.showId}-${show.sessionId ?? 0}`}
+              show={show}
+            />
+          ))}
+          {futureEvents.map((event, index) => (
+            <UpcomingEventCard
+              event={event}
+              key={event.eventId}
+              variant={index % 2 === 0 ? "solid" : "fade"}
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="mt-4 rounded-2xl bg-[#292e38] px-5 py-6 text-center text-sm font-medium text-[#b1b9c5]">
+          예정된 매치가 없습니다.
+        </p>
+      )}
     </section>
   );
 }
 
-type UpcomingMatchCardProps = (typeof UPCOMING_MATCHES)[number];
-
-function UpcomingMatchCard({
-  dateLabel,
-  href,
-  kind,
-  remainingDays,
-  title,
+function UpcomingEventCard({
+  event,
   variant,
-}: UpcomingMatchCardProps) {
+}: {
+  event: UpcomingEventResponse;
+  variant: "fade" | "solid";
+}) {
   return (
-    <Link
+    <article
       className={[
-        "flex min-h-[4.625rem] w-full items-start justify-between rounded-2xl",
-        "px-5 py-3.5 transition-transform hover:-translate-y-0.5",
-        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4",
-        "focus-visible:outline-[#ff0002]",
+        "flex min-h-[4.625rem] w-full items-start justify-between rounded-2xl px-5 py-3.5",
         variant === "solid"
           ? "bg-[#292e38]"
           : "bg-[linear-gradient(102deg,#292e38_0%,rgba(41,46,56,0.6)_100%)]",
       ].join(" ")}
-      href={href}
     >
       <span className="flex min-w-0 flex-1 items-center gap-3">
         <span className="flex self-stretch py-1.5">
           <span aria-hidden className="size-2 rounded-full bg-[#ff0002]" />
         </span>
         <span className="min-w-0">
-          <span className="block truncate text-base font-semibold leading-[1.4] tracking-[-0.01em] text-[#f0f0f2]">
-            {title}
+          <span className="block truncate text-base font-semibold leading-[1.4] text-[#f0f0f2]">
+            {event.title}
           </span>
-          <span className="mt-1.5 flex min-w-0 items-center gap-2 text-[13px] font-medium leading-[1.4] tracking-[-0.01em] text-[#b1b9c5]">
-            <span className="shrink-0">{dateLabel}</span>
-            <span aria-hidden className="shrink-0">
-              |
-            </span>
-            <span className="truncate">{kind}</span>
+          <span className="mt-1.5 block truncate text-[13px] font-medium leading-[1.4] text-[#b1b9c5]">
+            {formatDateLabel(event.startsAt)} | {formatShowType(event.type)}
           </span>
         </span>
       </span>
-      <span className="ml-4 flex shrink-0 items-center justify-center rounded-full bg-[#363d48] px-3 py-1 text-xs font-semibold leading-[1.4] tracking-[-0.01em] text-white">
-        D-{remainingDays}
+      <span className="ml-4 rounded-full bg-[#363d48] px-3 py-1 text-xs font-semibold text-white">
+        D-{Math.max(event.daysRemaining, 0)}
       </span>
-    </Link>
+    </article>
   );
+}
+
+function toShowSchedule(
+  show: AvailableShowResponse,
+  index: number,
+): ShowScheduleCardData {
+  return {
+    completedMatches: show.completedMatchCount,
+    dateLabel: formatDateLabel(show.startsAt),
+    kind: formatShowType(show.type),
+    matchCount: show.matchCount,
+    remainingDays: getRemainingDays(show.startsAt),
+    sessionId: show.sessionId,
+    showId: show.showId,
+    title: show.title,
+    variant: index % 2 === 0 ? "solid" : "fade",
+  };
+}
+
+function formatDateLabel(value: string) {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return match ? `${match[1]}.${match[2]}.${match[3]}` : value;
+}
+
+function getRemainingDays(value: string) {
+  const start = new Date(value);
+  return Number.isNaN(start.getTime())
+    ? 0
+    : Math.max(
+        0,
+        Math.ceil((start.getTime() - Date.now()) / (24 * 60 * 60 * 1000)),
+      );
+}
+
+function formatShowType(type: string) {
+  const normalizedType = type.toUpperCase();
+  if (normalizedType.includes("MONTH")) return "Monthly Show";
+  if (normalizedType.includes("WEEK")) return "Weekly Show";
+  return type;
 }
 
 function BellIcon() {
@@ -193,7 +342,6 @@ function BellIcon() {
       className="size-6"
       fill="none"
       viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
     >
       <path
         d="M18 9.75a6 6 0 0 0-12 0c0 6-2.25 7.5-2.25 7.5h16.5S18 15.75 18 9.75Z"
@@ -215,13 +363,7 @@ function BellIcon() {
 
 function PlusIcon({ className }: { className?: string }) {
   return (
-    <svg
-      aria-hidden="true"
-      className={className}
-      fill="none"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
+    <svg aria-hidden="true" className={className} fill="none" viewBox="0 0 24 24">
       <path
         d="M12 5v14M5 12h14"
         stroke="currentColor"

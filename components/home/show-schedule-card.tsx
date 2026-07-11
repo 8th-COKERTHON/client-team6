@@ -2,7 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { startShowSessionAction } from "@/app/ring/actions";
+import {
+  startEpisodePlacementAction,
+  startShowSessionAction,
+} from "@/app/ring/actions";
 
 export type ShowScheduleCardData = {
   completedMatches?: number;
@@ -78,6 +81,63 @@ export function ShowScheduleCard({ show }: { show: ShowScheduleCardData }) {
         </span>
         <span className="ml-4 flex shrink-0 items-center justify-center rounded-full bg-[#363d48] px-3 py-1 text-xs font-semibold leading-[1.4] text-white">
           {hasSession ? "계속" : `D-${Math.max(show.remainingDays, 0)}`}
+        </span>
+      </button>
+      {message ? (
+        <p className="mt-2 px-1 text-xs font-medium text-[#ff5b5d]" role="alert">
+          {message}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+export function EpisodePlacementCard({
+  episodeId,
+  title,
+}: {
+  episodeId: number;
+  title: string;
+}) {
+  const router = useRouter();
+  const [message, setMessage] = useState("");
+  const [isPending, startTransition] = useTransition();
+
+  function startPlacement() {
+    setMessage("");
+    startTransition(async () => {
+      const result = await startEpisodePlacementAction(episodeId);
+
+      if (!result.success || !result.progress?.sessionId) {
+        setMessage(result.message);
+        return;
+      }
+
+      router.push(
+        `/ring?sessionId=${result.progress.sessionId}&flow=placement&episodeId=${episodeId}`,
+      );
+    });
+  }
+
+  return (
+    <div>
+      <button
+        aria-busy={isPending}
+        className="group mt-4 flex min-h-[5.5625rem] w-full items-center justify-between rounded-[20px] border border-[#ff0002]/50 bg-[#292e38] p-5 text-left disabled:cursor-wait disabled:opacity-60"
+        disabled={isPending}
+        onClick={startPlacement}
+        type="button"
+      >
+        <span className="min-w-0">
+          <span className="block truncate text-lg font-semibold leading-[1.4] text-white">
+            {title}
+          </span>
+          <span className="mt-1.5 block text-[13px] font-medium leading-[1.4] text-[#b1b9c5]">
+            {isPending ? "매치를 준비하고 있어요." : "대기 중인 배치전을 시작하세요."}
+          </span>
+        </span>
+        <span className="ml-4 shrink-0 text-sm font-semibold text-white">
+          시작
         </span>
       </button>
       {message ? (
