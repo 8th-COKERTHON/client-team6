@@ -40,10 +40,11 @@ export function SessionResults({ history }: { history: SessionHistory }) {
       : history.totalMatches - 1,
   );
   const monthlyChampion =
-    history.episodes[String(history.winnerIds[monthlyWinnerIndex])] ??
-    standings[0];
+    history.episodes[String(history.winnerIds[monthlyWinnerIndex])];
   const annualChampion =
-    history.episodes[String(history.winnerIds.at(-1))] ?? monthlyChampion;
+    history.totalMatches >= 10
+      ? history.episodes[String(history.winnerIds.at(-1))]
+      : undefined;
 
   return (
     <main className="min-h-svh bg-[#12161b] text-white">
