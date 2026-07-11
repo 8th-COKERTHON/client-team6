@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useMockApp } from "@/components/mock/mock-app-provider";
-import { MockTitleField } from "@/components/mock/mock-title-field";
 import {
   MockHeader,
   MockHomeIndicator,
@@ -11,7 +10,7 @@ import {
 import { ActionButton, ActionButtonLink } from "@/components/ui/action-button";
 import { TextArea } from "@/components/ui/text-area";
 import { TextInput } from "@/components/ui/text-input";
-import { formatDateForDisplay, suggestMockTitle } from "@/lib/mock-flow";
+import { formatDateForDisplay } from "@/lib/mock-flow";
 
 export function MockEntry() {
   const { createEpisode } = useMockApp();
@@ -20,22 +19,20 @@ export function MockEntry() {
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [isComplete, setIsComplete] = useState(false);
-  const canSubmit = Boolean(content.trim() && date.trim());
+  const canSubmit = Boolean(title.trim() && content.trim() && date.trim());
 
   function submit() {
     if (!canSubmit) {
       return;
     }
 
-    const finalTitle = title.trim() || suggestMockTitle(content);
-    const didCreate = createEpisode({ content, date, title: finalTitle });
+    const didCreate = createEpisode({ content, date, title });
 
     if (!didCreate) {
       setMessage("에피소드를 등록할 수 없습니다. 진행 중인 매치를 먼저 확인해주세요.");
       return;
     }
 
-    setTitle(finalTitle);
     setIsComplete(true);
   }
 
@@ -71,6 +68,18 @@ export function MockEntry() {
         <MockHeader backHref="/mock/home" title="에피소드 등록" />
         <section className="flex-1 overflow-y-auto px-4 pb-6 pt-6">
           <div className="flex flex-col gap-8">
+            <TextInput
+              id="mock-entry-title"
+              label="제목 입력"
+              maxLength={150}
+              onChange={(event) => {
+                setTitle(event.target.value);
+                setMessage("");
+              }}
+              placeholder="에피소드 제목을 입력해주세요."
+              value={title}
+            />
+
             <TextArea
               fieldClassName={content ? "min-h-[110px]" : undefined}
               id="mock-entry-content"
@@ -83,17 +92,6 @@ export function MockEntry() {
               placeholder="오늘의 에피소드를 기록해주세요."
               rows={content ? 3 : 1}
               value={content}
-            />
-
-            <MockTitleField
-              canGenerate={Boolean(content.trim())}
-              id="mock-entry-title"
-              onChange={(value) => {
-                setTitle(value);
-                setMessage("");
-              }}
-              onGenerate={() => setTitle(suggestMockTitle(content))}
-              value={title}
             />
 
             <TextInput

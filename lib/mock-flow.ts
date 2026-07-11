@@ -530,22 +530,12 @@ export function getMatchPhaseLabel(phase: MockMatchPhase) {
   return labels[phase];
 }
 
-export function suggestMockTitle(content: string) {
-  const normalized = content.trim().replace(/\s+/g, " ");
-
-  if (!normalized) {
-    return "제목 없는 사건";
-  }
-
-  const firstClause = normalized.split(/[.!?。]/)[0].trim();
-
-  return firstClause.length > 18
-    ? `${firstClause.slice(0, 18).trim()}...`
-    : firstClause;
-}
-
 export function isDraftReady(draft: MockEpisodeDraft) {
-  return Boolean(draft.title.trim() && normalizeEpisodeDate(draft.date));
+  return Boolean(
+    draft.title.trim() &&
+      draft.content.trim() &&
+      normalizeEpisodeDate(draft.date),
+  );
 }
 
 export function formatDateForDisplay(date: Date) {

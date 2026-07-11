@@ -18,7 +18,6 @@ import type {
   RankingListResponse,
   RingResponse,
   ShowSessionProgressResponse,
-  TitleSuggestionResponse,
 } from "@/lib/backend-types";
 
 type BackendRequestInit = Omit<RequestInit, "body"> & {
@@ -56,16 +55,6 @@ export async function completeOnboarding() {
 
 export async function getHome() {
   return backendRequest<HomeResponse>("/api/v1/home");
-}
-
-export async function suggestEpisodeTitle(content: string) {
-  return backendRequest<TitleSuggestionResponse>(
-    "/api/v1/episodes/title-suggestions",
-    {
-      body: { content },
-      method: "POST",
-    },
-  );
 }
 
 export async function createEpisode(input: {

@@ -56,10 +56,6 @@ export type CreateEpisodeResponse = {
   titleScore: number;
 };
 
-export type TitleSuggestionResponse = {
-  title: string;
-};
-
 export type EpisodeListItemResponse = {
   contentPreview: string;
   createdAt: string;

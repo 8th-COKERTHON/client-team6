@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import {
   createEpisode,
   getBackendErrorMessage,
-  suggestEpisodeTitle,
 } from "@/lib/backend-api";
 
 export type SaveOnboardingEpisodeInput = {
@@ -18,41 +17,6 @@ export type SaveOnboardingEpisodeResult = {
   message: string;
   success: boolean;
 };
-
-export type SuggestOnboardingEpisodeTitleResult = {
-  message: string;
-  success: boolean;
-  title?: string;
-};
-
-export async function suggestOnboardingEpisodeTitle(
-  content: string,
-): Promise<SuggestOnboardingEpisodeTitleResult> {
-  const normalizedContent = content.trim();
-
-  if (!normalizedContent) {
-    return { message: "내용을 먼저 입력해주세요.", success: false };
-  }
-
-  if (normalizedContent.length > 5000) {
-    return { message: "내용은 5000자 이하로 입력해주세요.", success: false };
-  }
-
-  try {
-    const data = await suggestEpisodeTitle(normalizedContent);
-
-    if (!data.title?.trim()) {
-      return { message: "AI 제목을 생성하지 못했습니다.", success: false };
-    }
-
-    return { message: "", success: true, title: data.title };
-  } catch (error) {
-    return {
-      message: getBackendErrorMessage(error, "AI 제목을 생성하지 못했습니다."),
-      success: false,
-    };
-  }
-}
 
 export async function saveOnboardingEpisode({
   content,

@@ -3,11 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
-import {
-  createEntry,
-  suggestEntryTitle,
-  type CreateEntryResult,
-} from "@/app/episodes/new/actions";
+import { createEntry, type CreateEntryResult } from "@/app/episodes/new/actions";
 import { startEpisodePlacementAction } from "@/app/ring/actions";
 import { MobileHomeIndicator } from "@/components/auth/auth-screen";
 import { ActionButton, ActionButtonLink } from "@/components/ui/action-button";
@@ -26,8 +22,7 @@ export function EntryForm() {
   const [message, setMessage] = useState("");
   const [title, setTitle] = useState("");
   const [isSaving, startSavingTransition] = useTransition();
-  const [isSuggesting, startSuggestingTransition] = useTransition();
-  const canSubmit = Boolean(content.trim() && date.trim());
+  const canSubmit = Boolean(title.trim() && content.trim() && date.trim());
 
   function handleContentChange(value: string) {
     setContent(value);
@@ -44,21 +39,6 @@ export function EntryForm() {
     setMessage("");
   }
 
-  function generateTitle() {
-    setMessage("");
-
-    startSuggestingTransition(async () => {
-      const result = await suggestEntryTitle(content);
-
-      if (!result.success || !result.title) {
-        setMessage(result.message);
-        return;
-      }
-
-      setTitle(result.title);
-    });
-  }
-
   function submitEntry() {
     if (!canSubmit || isSaving) {
       return;
@@ -67,24 +47,10 @@ export function EntryForm() {
     setMessage("");
 
     startSavingTransition(async () => {
-      let finalTitle = title.trim();
-
-      if (!finalTitle) {
-        const suggestion = await suggestEntryTitle(content);
-
-        if (!suggestion.success || !suggestion.title) {
-          setMessage(suggestion.message);
-          return;
-        }
-
-        finalTitle = suggestion.title;
-        setTitle(finalTitle);
-      }
-
       const result = await createEntry({
         content,
         date,
-        title: finalTitle,
+        title,
       });
 
       if (!result.success || !result.episodeId) {
@@ -111,6 +77,17 @@ export function EntryForm() {
 
         <section className="flex-1 overflow-y-auto px-4 pt-6 pb-6">
           <div className="flex flex-col gap-8">
+            <TextInput
+              disabled={isSaving}
+              id="entry-title"
+              label="제목 입력"
+              maxLength={150}
+              onChange={(event) => handleTitleChange(event.target.value)}
+              placeholder="에피소드 제목을 입력해주세요."
+              type="text"
+              value={title}
+            />
+
             <TextArea
               disabled={isSaving}
               fieldClassName={content ? "min-h-[110px]" : "min-h-[52px]"}
@@ -123,29 +100,6 @@ export function EntryForm() {
               textareaClassName={content ? "min-h-[78px]" : "min-h-6"}
               value={content}
             />
-
-            <div className="flex w-full flex-col gap-2">
-              <FieldLabel htmlFor="entry-title" icon={<SparkleIcon />}>
-                AI 제목 생성
-              </FieldLabel>
-              <TextInput
-                aria-label="AI 제목 생성"
-                disabled={isSaving}
-                id="entry-title"
-                maxLength={150}
-                onChange={(event) => handleTitleChange(event.target.value)}
-                placeholder="내용 입력 후 AI 제목이 생성돼요."
-                trailingIcon={
-                  <RefreshTitleButton
-                    disabled={!content.trim() || isSaving}
-                    isPending={isSuggesting}
-                    onClick={generateTitle}
-                  />
-                }
-                type="text"
-                value={title}
-              />
-            </div>
 
             <TextInput
               disabled={isSaving}
@@ -167,7 +121,7 @@ export function EntryForm() {
 
             {message ? (
               <p
-                className="text-sm font-medium leading-[1.4] tracking-[-0.01em] text-[#ff0002]"
+                className="text-sm font-medium leading-[1.4] text-[#ff0002]"
                 role="alert"
               >
                 {message}
@@ -285,48 +239,6 @@ function EntryTopBar() {
       </h1>
       <span aria-hidden="true" className="size-6" />
     </header>
-  );
-}
-
-function FieldLabel({
-  children,
-  htmlFor,
-  icon,
-}: {
-  children: string;
-  htmlFor: string;
-  icon?: React.ReactNode;
-}) {
-  return (
-    <label
-      className="flex items-center gap-1 text-sm font-medium leading-[1.4] tracking-[-0.01em] text-white"
-      htmlFor={htmlFor}
-    >
-      {icon ? <span className="flex size-5 items-center justify-center">{icon}</span> : null}
-      {children}
-    </label>
-  );
-}
-
-function RefreshTitleButton({
-  disabled,
-  isPending,
-  onClick,
-}: {
-  disabled: boolean;
-  isPending: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      aria-label="AI 제목 생성"
-      className="flex size-5 items-center justify-center text-white disabled:text-[#87919e]"
-      disabled={disabled || isPending}
-      onClick={onClick}
-      type="button"
-    >
-      <RefreshIcon />
-    </button>
   );
 }
 
@@ -512,54 +424,6 @@ function DatePickerButton({
         </div>
       ) : null}
     </div>
-  );
-}
-
-function SparkleIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="size-4"
-      fill="none"
-      viewBox="0 0 16 16"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M7 1.5 8.05 5 11.5 6.05 8.05 7.1 7 10.5 5.95 7.1 2.5 6.05 5.95 5 7 1.5Z"
-        fill="currentColor"
-      />
-      <path
-        d="M12 9 12.55 10.8 14.35 11.35 12.55 11.9 12 13.7 11.45 11.9 9.65 11.35 11.45 10.8 12 9Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
-function RefreshIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="size-5"
-      fill="none"
-      viewBox="0 0 20 20"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M16.2 10.1a6.2 6.2 0 0 1-10.7 4.25M3.8 9.9A6.2 6.2 0 0 1 14.5 5.65"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.7"
-      />
-      <path
-        d="M14.8 2.8v3.1h-3.1M5.2 17.2v-3.1h3.1"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.7"
-      />
-    </svg>
   );
 }
 

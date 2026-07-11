@@ -2,10 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import {
-  saveOnboardingEpisode,
-  suggestOnboardingEpisodeTitle,
-} from "@/app/onboarding/actions";
+import { saveOnboardingEpisode } from "@/app/onboarding/actions";
 import { startOnboardingPlacementAction } from "@/app/ring/actions";
 import { MobileHomeIndicator } from "@/components/auth/auth-screen";
 import { ActionButton } from "@/components/ui/action-button";
@@ -42,7 +39,6 @@ export function OnboardingFlow({
   );
   const [message, setMessage] = useState("");
   const [isSaving, startSavingTransition] = useTransition();
-  const [isSuggesting, startSuggestingTransition] = useTransition();
 
   const activeEpisode = episodes[activeIndex];
   const isActiveEpisodeSaved = Boolean(activeEpisode.episodeId);
@@ -59,21 +55,6 @@ export function OnboardingFlow({
           : episode,
       ),
     );
-  }
-
-  function generateTitle() {
-    setMessage("");
-
-    startSuggestingTransition(async () => {
-      const result = await suggestOnboardingEpisodeTitle(activeEpisode.content);
-
-      if (!result.success || !result.title) {
-        setMessage(result.message);
-        return;
-      }
-
-      updateEpisode("title", result.title);
-    });
   }
 
   function handleBack() {
@@ -160,10 +141,8 @@ export function OnboardingFlow({
             activeIndex={activeIndex}
             isPending={isSaving}
             isPrimaryActive={isActiveEpisodeReady}
-            isSuggesting={isSuggesting}
             message={message}
             onBack={handleBack}
-            onGenerateTitle={generateTitle}
             onPrimaryAction={handlePrimaryAction}
             onSelectEpisode={setActiveIndex}
             onUpdateEpisode={updateEpisode}
@@ -208,10 +187,8 @@ type EpisodeRegistrationScreenProps = {
   activeIndex: number;
   isPending: boolean;
   isPrimaryActive: boolean;
-  isSuggesting: boolean;
   message: string;
   onBack: () => void;
-  onGenerateTitle: () => void;
   onPrimaryAction: () => void;
   onSelectEpisode: (index: number) => void;
   onUpdateEpisode: (field: keyof EpisodeDraft, value: string) => void;
@@ -222,10 +199,8 @@ function EpisodeRegistrationScreen({
   activeIndex,
   isPending,
   isPrimaryActive,
-  isSuggesting,
   message,
   onBack,
-  onGenerateTitle,
   onPrimaryAction,
   onSelectEpisode,
   onUpdateEpisode,
@@ -244,37 +219,27 @@ function EpisodeRegistrationScreen({
         />
 
         <div className="mt-8 flex flex-col gap-8">
+          <TextInput
+            disabled={isSaved || isPending}
+            id="episode-title"
+            label="제목 입력"
+            maxLength={150}
+            onChange={(event) => onUpdateEpisode("title", event.target.value)}
+            placeholder="에피소드 제목을 입력해주세요."
+            type="text"
+            value={activeEpisode.title}
+          />
+
           <TextArea
             disabled={isSaved || isPending}
             id="episode-content"
             label="내용"
+            maxLength={5000}
             onChange={(event) => onUpdateEpisode("content", event.target.value)}
             placeholder="당신의 에피소드를 기록해주세요."
             rows={activeEpisode.content ? 3 : 1}
             value={activeEpisode.content}
           />
-
-          <div className="flex w-full flex-col gap-2">
-            <FieldLabel htmlFor="episode-title" icon={<SparkleIcon />}>
-              AI 제목 생성
-            </FieldLabel>
-            <TextInput
-              aria-label="AI 제목 생성"
-              disabled={isSaved || isPending}
-              id="episode-title"
-              onChange={(event) => onUpdateEpisode("title", event.target.value)}
-              placeholder="내용 입력 후 AI 제목을 생성할 수 있어요."
-              trailingIcon={
-                <RefreshTitleButton
-                  disabled={!activeEpisode.content.trim() || isSaved || isPending}
-                  isPending={isSuggesting}
-                  onClick={onGenerateTitle}
-                />
-              }
-              type="text"
-              value={activeEpisode.title}
-            />
-          </div>
 
           <TextInput
             disabled={isSaved || isPending}
@@ -293,7 +258,7 @@ function EpisodeRegistrationScreen({
           />
 
           {message ? (
-            <p className="text-sm font-medium leading-[1.4] tracking-[-0.01em] text-[#ff0002]" role="alert">
+            <p className="text-sm font-medium leading-[1.4] text-[#ff0002]" role="alert">
               {message}
             </p>
           ) : null}
@@ -378,96 +343,6 @@ function EpisodeProgress({ activeIndex, onSelectEpisode }: EpisodeProgressProps)
   );
 }
 
-type FieldLabelProps = {
-  children: string;
-  htmlFor: string;
-  icon?: React.ReactNode;
-};
-
-function FieldLabel({ children, htmlFor, icon }: FieldLabelProps) {
-  return (
-    <label
-      className="flex items-center gap-1 text-sm font-medium leading-[1.4] tracking-[-0.01em] text-white"
-      htmlFor={htmlFor}
-    >
-      {icon ? <span className="flex size-5 items-center justify-center">{icon}</span> : null}
-      {children}
-    </label>
-  );
-}
-
-type RefreshTitleButtonProps = {
-  disabled: boolean;
-  isPending: boolean;
-  onClick: () => void;
-};
-
-function RefreshTitleButton({
-  disabled,
-  isPending,
-  onClick,
-}: RefreshTitleButtonProps) {
-  return (
-    <button
-      aria-label="AI 제목 다시 생성"
-      className="flex size-5 items-center justify-center text-white disabled:text-[#87919e]"
-      disabled={disabled || isPending}
-      onClick={onClick}
-      type="button"
-    >
-      <RefreshIcon />
-    </button>
-  );
-}
-
-function SparkleIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="size-4"
-      fill="none"
-      viewBox="0 0 16 16"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M7 1.5 8.05 5 11.5 6.05 8.05 7.1 7 10.5 5.95 7.1 2.5 6.05 5.95 5 7 1.5Z"
-        fill="currentColor"
-      />
-      <path
-        d="M12 9 12.55 10.8 14.35 11.35 12.55 11.9 12 13.7 11.45 11.9 9.65 11.35 11.45 10.8 12 9Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
-function RefreshIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="size-5"
-      fill="none"
-      viewBox="0 0 20 20"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M16.2 10.1a6.2 6.2 0 0 1-10.7 4.25M3.8 9.9A6.2 6.2 0 0 1 14.5 5.65"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.7"
-      />
-      <path
-        d="M14.8 2.8v3.1h-3.1M5.2 17.2v-3.1h3.1"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.7"
-      />
-    </svg>
-  );
-}
-
 function createEpisodeDraft(): EpisodeDraft {
   return {
     content: "",
@@ -497,7 +372,9 @@ function getInitialActiveIndex(initialEpisodes: OnboardingInitialEpisode[]) {
 }
 
 function isEpisodeReady(episode: EpisodeDraft) {
-  return Boolean(episode.title.trim() && episode.date.trim());
+  return Boolean(
+    episode.title.trim() && episode.content.trim() && episode.date.trim(),
+  );
 }
 
 function formatDateForDisplay(date: Date) {

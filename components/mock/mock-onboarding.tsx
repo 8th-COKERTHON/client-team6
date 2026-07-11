@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMockApp } from "@/components/mock/mock-app-provider";
-import { MockTitleField } from "@/components/mock/mock-title-field";
 import {
   MockHomeIndicator,
   MockPageFrame,
@@ -11,7 +10,7 @@ import {
 import { ActionButton } from "@/components/ui/action-button";
 import { TextArea } from "@/components/ui/text-area";
 import { TextInput } from "@/components/ui/text-input";
-import { isDraftReady, suggestMockTitle } from "@/lib/mock-flow";
+import { isDraftReady } from "@/lib/mock-flow";
 
 const EPISODE_COUNT = 5;
 
@@ -33,18 +32,9 @@ export function MockOnboarding() {
     setMessage("");
   }
 
-  function generateTitle() {
-    if (!activeDraft?.content.trim()) {
-      setMessage("내용을 먼저 입력해주세요.");
-      return;
-    }
-
-    updateDraft("title", suggestMockTitle(activeDraft.content));
-  }
-
   function moveNext() {
     if (!activeDraft || !isCurrentReady) {
-      setMessage("제목과 날짜를 입력해주세요.");
+      setMessage("제목, 내용과 날짜를 입력해주세요.");
       return;
     }
 
@@ -154,6 +144,15 @@ export function MockOnboarding() {
 
           {activeDraft ? (
             <div className="mt-8 flex flex-col gap-8">
+              <TextInput
+                id={`mock-onboarding-title-${activeIndex}`}
+                label="제목 입력"
+                maxLength={150}
+                onChange={(event) => updateDraft("title", event.target.value)}
+                placeholder="에피소드 제목을 입력해주세요."
+                value={activeDraft.title}
+              />
+
               <TextArea
                 fieldClassName={activeDraft.content ? "min-h-[110px]" : undefined}
                 id={`mock-onboarding-content-${activeIndex}`}
@@ -163,14 +162,6 @@ export function MockOnboarding() {
                 placeholder="당신의 에피소드를 기록해주세요."
                 rows={activeDraft.content ? 3 : 1}
                 value={activeDraft.content}
-              />
-
-              <MockTitleField
-                canGenerate={Boolean(activeDraft.content.trim())}
-                id={`mock-onboarding-title-${activeIndex}`}
-                onChange={(value) => updateDraft("title", value)}
-                onGenerate={generateTitle}
-                value={activeDraft.title}
               />
 
               <TextInput
