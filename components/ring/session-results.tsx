@@ -8,7 +8,7 @@ export type SessionHistoryEpisode = {
   episodeDate: string;
   episodeId: number;
   losses: number;
-  score: number;
+  score?: number;
   title: string;
   titleName?: string | null;
   wins: number;
@@ -77,16 +77,20 @@ export function SessionResults({ history }: { history: SessionHistory }) {
 
           {isMonthly ? (
             <div className="mt-8 flex flex-col gap-3">
-              <ChampionResult
-                beltImage={monthlyBeltImage}
-                episode={monthlyChampion}
-                label="월간 챔피언"
-              />
-              <ChampionResult
-                beltImage={annualBeltImage}
-                episode={annualChampion}
-                label="연간 챔피언"
-              />
+              {monthlyChampion ? (
+                <ChampionResult
+                  beltImage={monthlyBeltImage}
+                  episode={monthlyChampion}
+                  label="월간 챔피언"
+                />
+              ) : null}
+              {annualChampion ? (
+                <ChampionResult
+                  beltImage={annualBeltImage}
+                  episode={annualChampion}
+                  label="연간 챔피언"
+                />
+              ) : null}
             </div>
           ) : highlightedEpisode ? (
             <div className="mt-8 rounded-[20px] border border-[#ff0002]/30 bg-[#292e38] p-5">
@@ -104,8 +108,10 @@ export function SessionResults({ history }: { history: SessionHistory }) {
                 ) : null}
               </div>
               <p className="mt-3 text-sm font-medium text-[#b1b9c5]">
-                {highlightedEpisode.score}점 · {highlightedEpisode.wins}승{" "}
-                {highlightedEpisode.losses}패
+                {typeof highlightedEpisode.score === "number"
+                  ? `${highlightedEpisode.score}점 · `
+                  : ""}
+                {highlightedEpisode.wins}승 {highlightedEpisode.losses}패
               </p>
             </div>
           ) : null}
@@ -146,9 +152,9 @@ function ChampionResult({
       <div className="min-w-0">
         <p className="text-xs font-medium text-[#b1b9c5]">{label}</p>
         <p className="mt-2 line-clamp-2 text-base font-semibold leading-[1.4] text-white">
-          {episode?.title ?? "미정"}
+          {episode?.title}
         </p>
-        {episode ? (
+        {typeof episode?.score === "number" ? (
           <p className="mt-2 text-xs font-semibold text-[#ff5b5d]">
             {episode.score}점
           </p>
@@ -192,7 +198,8 @@ function SessionRanking({
               </span>
             </div>
             <span className="shrink-0 text-xs font-medium text-[#b1b9c5]">
-              {episode.wins}승 · {episode.score}점
+              {episode.wins}승
+              {typeof episode.score === "number" ? ` · ${episode.score}점` : ""}
             </span>
           </div>
         ))}
@@ -207,7 +214,8 @@ function compareEpisodes(
 ) {
   return (
     right.wins - left.wins ||
-    right.score - left.score ||
+    (right.score ?? Number.NEGATIVE_INFINITY) -
+      (left.score ?? Number.NEGATIVE_INFINITY) ||
     left.episodeId - right.episodeId
   );
 }

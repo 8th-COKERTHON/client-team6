@@ -274,7 +274,6 @@ function createChampionSummary(
   history: ChampionHistoryItemResponse[],
   rankings: RankingItemResponse[],
 ) {
-  const now = new Date();
   const classified = new Map<ChampionScope, ChampionHistoryItemResponse>();
 
   history.forEach((champion) => {
@@ -282,23 +281,25 @@ function createChampionSummary(
     if (scope && !classified.has(scope)) classified.set(scope, champion);
   });
 
-  const monthlyFallback = history.find((champion) => {
-    const achievedAt = new Date(champion.achievedAt);
-    return (
-      achievedAt.getFullYear() === now.getFullYear() &&
-      achievedAt.getMonth() === now.getMonth()
-    );
-  });
-  const annualFallback = history.find(
-    (champion) => new Date(champion.achievedAt).getFullYear() === now.getFullYear(),
-  );
-  const topTitle = rankings[0]?.episodeTitle ?? "미정";
+  const champions: RankingChampion[] = [];
+  const allTimeTitle =
+    classified.get("all-time")?.episodeTitle ?? rankings[0]?.episodeTitle;
 
-  return [
-    createChampion("all-time", classified.get("all-time")?.episodeTitle ?? topTitle),
-    createChampion("annual", classified.get("annual")?.episodeTitle ?? annualFallback?.episodeTitle ?? topTitle),
-    createChampion("monthly", classified.get("monthly")?.episodeTitle ?? monthlyFallback?.episodeTitle ?? topTitle),
-  ];
+  if (allTimeTitle) {
+    champions.push(createChampion("all-time", allTimeTitle));
+  }
+
+  const annualTitle = classified.get("annual")?.episodeTitle;
+  if (annualTitle) {
+    champions.push(createChampion("annual", annualTitle));
+  }
+
+  const monthlyTitle = classified.get("monthly")?.episodeTitle;
+  if (monthlyTitle) {
+    champions.push(createChampion("monthly", monthlyTitle));
+  }
+
+  return champions;
 }
 
 function createChampion(scope: ChampionScope, title: string): RankingChampion {

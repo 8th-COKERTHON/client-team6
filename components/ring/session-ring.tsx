@@ -500,7 +500,6 @@ function toHistoryEpisode(episode: ActiveMatchDto["episodeA"]): SessionHistoryEp
     episodeDate: episode.episodeDate,
     episodeId: episode.episodeId,
     losses: 0,
-    score: 0,
     title: episode.title,
     wins: 0,
   };
@@ -511,7 +510,7 @@ function toRingEpisode(episode: EpisodeView): RingBattleEpisode {
     content: episode.content,
     episodeDate: episode.episodeDate,
     episodeId: episode.episodeId,
-    recordLabel: episode.titleName || "랭킹 산정 중",
+    recordLabel: episode.titleName,
     score: episode.score,
     title: episode.title,
   };
@@ -522,8 +521,6 @@ function toStandaloneEpisode(
 ): RingBattleEpisode {
   return {
     ...episode,
-    recordLabel: "진행 중인 매치",
-    score: 0,
   };
 }
 

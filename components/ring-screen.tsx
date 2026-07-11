@@ -14,8 +14,8 @@ export type RingBattleEpisode = {
   content: string;
   episodeDate: string;
   episodeId: number;
-  recordLabel: string;
-  score: number;
+  recordLabel?: string | null;
+  score?: number | null;
   title: string;
 };
 
@@ -337,9 +337,12 @@ function BattleCardFace({
       </button>
 
       <div className="mt-4">
-        {!isDetail ? (
+        {!isDetail &&
+        (episode.recordLabel || typeof episode.score === "number") ? (
           <p className="mb-4 text-[13px] font-medium leading-[1.4] text-[#b1b9c5]">
-            {episode.recordLabel} | {episode.score}점
+            {[episode.recordLabel, formatScore(episode.score)]
+              .filter(Boolean)
+              .join(" | ")}
           </p>
         ) : null}
         <button
@@ -465,4 +468,8 @@ function formatDateLabel(value?: string | null) {
   const [, year, month, day] = match;
 
   return `${year}.${month}.${day}`;
+}
+
+function formatScore(value?: number | null) {
+  return typeof value === "number" ? `${value}점` : null;
 }
