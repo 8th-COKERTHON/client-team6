@@ -1,36 +1,34 @@
 # Frontend API Map
 
-이 문서는 `기능명세서.md`와 백엔드 Swagger 문서를 프론트 개발 기준으로 연결한 참고 문서입니다.
+이 문서는 현재 백엔드 Swagger와 프론트 구현을 연결한 개발 기준 문서입니다.
 
-- Swagger UI: https://brands-matrix-sufficient-transcription.trycloudflare.com/swagger-ui/index.html#/
-- OpenAPI JSON: https://brands-matrix-sufficient-transcription.trycloudflare.com/v3/api-docs
+- Swagger UI: https://hit-boating-premier-headed.trycloudflare.com/swagger-ui/index.html#/
+- OpenAPI JSON: https://hit-boating-premier-headed.trycloudflare.com/v3/api-docs
 - API version: `Team 6 API v1`
 - 정리 기준일: 2026-07-11
-
-## 업데이트 메모
-
-2026-07-11 기준 Swagger에서 링 관련 API가 이전 문서와 달라졌습니다.
-
-- 기존 문서에 있던 `/api/v1/ring/events`, `/api/v1/ring/sessions`, `/rounds/{roundNo}/result` 계열 API는 현재 Swagger에 없습니다.
-- 현재 링 화면은 `GET /api/v1/ring` 하나로 조회합니다.
-- 대결 시작/취소는 `POST /api/v1/matches`, `DELETE /api/v1/matches/{matchId}`로 분리되어 있습니다.
-- 승자 선택, 라운드 결과 제출, 매치 완료, 매칭 기록 목록, 랭킹 전용 API는 현재 Swagger에 없습니다.
 
 ## 공통 규칙
 
 ### Base URL
 
-현재 인증 코드에서는 아래 환경변수를 사용합니다.
+```env
+AUTH_BACKEND_URL=https://hit-boating-premier-headed.trycloudflare.com
+```
 
-- `AUTH_BACKEND_URL`: 백엔드 기본 URL. 예: `https://brands-matrix-sufficient-transcription.trycloudflare.com`
-- `AUTH_BACKEND_LOGIN_URL`: 로그인 API 전체 URL을 직접 지정할 때 사용
-- `AUTH_BACKEND_SIGNUP_URL`: 회원가입 API 전체 URL을 직접 지정할 때 사용
+브라우저에서 백엔드를 직접 호출하지 않습니다. 인증 이후 API는 모두 서버 컴포넌트 또는 서버 액션에서 `lib/backend-api.ts`를 통해 호출합니다.
 
-추후 일반 API도 서버 액션 또는 route handler에서 호출하는 방식이면 `AUTH_BACKEND_URL`을 공통 base URL로 재사용하는 방향이 자연스럽습니다. 클라이언트 컴포넌트에서 직접 호출해야 하는 API가 생기면 별도 `NEXT_PUBLIC_` 환경변수 필요 여부를 검토합니다.
+### 인증
 
-### Response Envelope
+```http
+Authorization: Bearer {accessToken}
+```
 
-대부분의 API 응답은 아래 형태를 따릅니다.
+- Auth.js Credentials 로그인이 access/refresh token을 JWT 세션에 저장합니다.
+- 만료 60초 전부터 Auth.js JWT 콜백이 access token을 갱신합니다.
+- 공통 API 계층은 갱신된 세션의 access token을 사용합니다.
+- 로그인, 회원가입, refresh를 제외한 기능 API는 인증이 필요합니다.
+
+### 응답 형식
 
 ```ts
 type ApiResponse<T> = {
@@ -41,480 +39,117 @@ type ApiResponse<T> = {
 };
 ```
 
-### Auth
+`lib/backend-api.ts`가 HTTP 오류, `success: false`, 비정상 envelope와 네트워크 오류를 공통 처리합니다. 조회 요청은 사용자별 최신 데이터를 위해 `cache: "no-store"`를 사용합니다.
 
-Swagger 전역 보안 스키마는 Bearer JWT입니다.
+## 연동 현황
 
-```http
-Authorization: Bearer {accessToken}
-```
-
-로그인, 회원가입, refresh를 제외한 API는 기본적으로 인증이 필요하다고 보고 구현합니다.
-
-## 현재 Swagger 경로 요약
-
-| 용도 | Method | Path |
-| --- | --- | --- |
-| 회원가입 | `POST` | `/api/v1/auth/signup` |
-| 로그인 | `POST` | `/api/v1/auth/login` |
-| 토큰 갱신 | `POST` | `/api/v1/auth/refresh` |
-| 내 정보 조회 | `GET` | `/api/v1/members/me` |
-| 온보딩 완료 | `POST` | `/api/v1/members/me/onboarding/complete` |
-| 홈 조회 | `GET` | `/api/v1/home` |
-| 에피소드 목록 | `GET` | `/api/v1/episodes` |
-| 에피소드 등록 | `POST` | `/api/v1/episodes` |
-| 에피소드 상세 | `GET` | `/api/v1/episodes/{episodeId}` |
-| 에피소드 제목 제안 | `POST` | `/api/v1/episodes/title-suggestions` |
-| 링 화면 조회 | `GET` | `/api/v1/ring` |
-| 대결 시작 | `POST` | `/api/v1/matches` |
-| 대결 취소 | `DELETE` | `/api/v1/matches/{matchId}` |
-
-`/api/v1/sample/public`, `/api/v1/sample/me`는 샘플 API로 보고 프론트 기능 매핑에서는 제외합니다.
-
-## 기능별 API 연결
-
-### 1. 회원가입
-
-기능명세:
-
-- 이메일 기반 회원가입
-- 입력 항목: 이름, 이메일, 비밀번호
-- 이메일 인증 없음
-
-API:
-
-| 용도 | Method | Path | Request | Response |
-| --- | --- | --- | --- | --- |
-| 회원가입 | `POST` | `/api/v1/auth/signup` | `SignUpRequest` | `ApiResponse<Record<string, number>>` |
-
-`SignUpRequest`
-
-```ts
-type SignUpRequest = {
-  email: string; // min 1
-  password: string; // min 8, max 72
-  name: string; // max 50
-};
-```
-
-프론트 메모:
-
-- 현재 `app/(auth)/signup/actions.ts`에서 이미 연동되어 있습니다.
-- 성공 후 로그인 페이지 이동 또는 자동 로그인 정책은 UX 결정이 필요합니다.
-
-### 2. 로그인과 세션
-
-API:
-
-| 용도 | Method | Path | Request | Response |
-| --- | --- | --- | --- | --- |
-| 로그인 | `POST` | `/api/v1/auth/login` | `LoginRequest` | `ApiResponse<LoginResponse>` |
-| 토큰 갱신 | `POST` | `/api/v1/auth/refresh` | `RefreshRequest` | `ApiResponse<TokenResponse>` |
-| 내 정보 | `GET` | `/api/v1/members/me` | 없음 | `ApiResponse<MemberMeResponse>` |
-
-`LoginRequest`
-
-```ts
-type LoginRequest = {
-  email: string;
-  password: string;
-};
-```
-
-`LoginResponse`
-
-```ts
-type LoginResponse = {
-  accessToken: string;
-  refreshToken: string;
-  tokenType: string;
-  expiresIn: number;
-  name: string;
-  email: string;
-  onboardingCompleted: boolean;
-  onboardingCompletedAt?: string;
-};
-```
-
-`MemberMeResponse`
-
-```ts
-type MemberMeResponse = {
-  memberId: number;
-  name: string;
-  email: string;
-  onboardingCompleted: boolean;
-  onboardingCompletedAt?: string;
-};
-```
-
-프론트 메모:
-
-- 로그인 직후 온보딩 노출 여부는 `onboardingCompleted`로 판단합니다.
-- 세션/JWT에는 `accessToken`, `refreshToken`, `name`, `email`, `onboardingCompleted`, `onboardingCompletedAt`을 담는 방향이 현재 API와 맞습니다.
-- refresh token 재발급 플로우는 아직 프론트 구현 필요 항목입니다.
-
-### 3. 온보딩 - 에피소드 등록
-
-기능명세:
-
-- 사용자가 겪은 안 좋은 일 5개를 등록합니다.
-- 사건 제목: AI 자동 생성, 사용자가 수정 가능, 필수
-- 사건 내용: 사용자가 자유 입력, 명세상 선택 항목
-- 날짜: 기본값은 입력 날짜, 사용자가 수정 가능, 필수
-- 5개를 모두 적지 않아도 나갈 수 있어야 합니다.
-
-API:
-
-| 용도 | Method | Path | Request | Response |
-| --- | --- | --- | --- | --- |
-| AI 제목 생성 | `POST` | `/api/v1/episodes/title-suggestions` | `TitleSuggestionRequest` | `ApiResponse<TitleSuggestionResponse>` |
-| 에피소드 생성 | `POST` | `/api/v1/episodes` | `CreateEpisodeRequest` | `ApiResponse<CreateEpisodeResponse>` |
-| 온보딩 완료 처리 | `POST` | `/api/v1/members/me/onboarding/complete` | 없음 | `ApiResponse<MemberMeResponse>` |
-
-`TitleSuggestionRequest`
-
-```ts
-type TitleSuggestionRequest = {
-  content: string; // required, max 5000
-};
-```
-
-`TitleSuggestionResponse`
-
-```ts
-type TitleSuggestionResponse = {
-  title: string;
-};
-```
-
-`CreateEpisodeRequest`
-
-```ts
-type CreateEpisodeRequest = {
-  title: string; // required, max 150
-  content: string; // required, max 5000
-  episodeDate: string; // required, YYYY-MM-DD
-};
-```
-
-`CreateEpisodeResponse`
-
-```ts
-type CreateEpisodeResponse = {
-  episodeId: number;
-  status: string;
-  titleScore: number;
-  currentTitle: string;
-  availableEpisodeCount: number;
-  canStartMatch: boolean;
-  createdAt: string;
-};
-```
-
-프론트 메모:
-
-- 현재 Swagger 기준 `CreateEpisodeRequest.content`는 required입니다. 기능명세는 선택 항목이라고 되어 있어 백엔드와 정책 확인이 필요합니다.
-- 기능명세는 날짜에 월만 입력 가능한 예외를 언급하지만, Swagger는 `episodeDate`를 `date` 형식으로 요구합니다.
-- 5개 등록 후 또는 사용자가 중도 종료할 때 `POST /api/v1/members/me/onboarding/complete` 호출 여부를 정책으로 확정해야 합니다.
-
-### 4. 온보딩 배치전
-
-기능명세:
-
-- 5개 사건에 대한 순위 결정전
-- 리그전 총 10판
-- 매치 순서 = 등록 순서
-- 리그전 1등 = 올타임 챔피언
-
-현재 Swagger에서 연결 가능한 API:
-
-| 용도 | Method | Path | Request | Response |
-| --- | --- | --- | --- | --- |
-| 링 화면 조회 | `GET` | `/api/v1/ring` | 없음 | `ApiResponse<RingResponse>` |
-| 대결 시작 | `POST` | `/api/v1/matches` | `MatchRequestDto` | `ApiResponse<number>` |
-| 대결 취소 | `DELETE` | `/api/v1/matches/{matchId}` | path `matchId` | `ApiResponse<void>` |
-
-프론트 메모:
-
-- 현재 명세만으로는 온보딩 리그전 10판을 완결할 수 없습니다.
-- `POST /api/v1/matches`는 두 에피소드 ID로 대결을 생성하고 `matchId`를 반환합니다.
-- 승자 선택, 점수 반영, 다음 라운드 진행, 매치 완료 API가 Swagger에 없습니다.
-- 온보딩 배치전 UI 구현 전에 백엔드가 승자 제출 API를 제공할지 확인해야 합니다.
-
-### 5. 홈
-
-기능명세:
-
-- 알림
-- 오늘의 사건 등록
-- 예정된 매칭 일정
-
-API:
-
-| 용도 | Method | Path | Request | Response |
-| --- | --- | --- | --- | --- |
-| 홈 데이터 | `GET` | `/api/v1/home` | 없음 | `ApiResponse<HomeResponse>` |
-| 오늘의 사건 등록 | `POST` | `/api/v1/episodes` | `CreateEpisodeRequest` | `ApiResponse<CreateEpisodeResponse>` |
-
-`HomeResponse`
-
-```ts
-type HomeResponse = {
-  today: string;
-  availableEpisodeCount: number;
-  canStartMatch: boolean;
-  todayEpisode?: {
-    episodeId: number;
-    title: string;
-    episodeDate: string;
-    createdAt: string;
-  };
-  upcomingEvents: Array<{
-    eventId: number;
-    type: string;
-    title: string;
-    startsAt: string;
-    endsAt: string;
-    daysRemaining: number;
-    scoreReward: number;
-  }>;
-};
-```
-
-프론트 메모:
-
-- `todayEpisode`가 있으면 오늘의 사건 등록 CTA 상태를 바꿀 수 있습니다.
-- `availableEpisodeCount`, `canStartMatch`로 매칭 가능 CTA 또는 안내 팝업을 제어할 수 있습니다.
-- Swagger 설명상 현재 구현에서는 `canStartMatch`가 `false`, `upcomingEvents`가 빈 배열입니다.
-- 푸시 알림 등록/조회 API는 현재 Swagger에 없습니다.
-
-### 6. 오늘의 사건 등록과 대결 시작
-
-기능명세:
-
-- 사건 제목 AI 생성/수정 가능
-- 내용 입력
-- 날짜 입력
-- 등록 후 링으로 이동할지 나중에 할지 팝업
-- 오늘의 사건 vs 이전 사건 5개 매칭
-
-API:
-
-| 용도 | Method | Path |
-| --- | --- | --- |
-| AI 제목 생성 | `POST` | `/api/v1/episodes/title-suggestions` |
-| 에피소드 생성 | `POST` | `/api/v1/episodes` |
-| 링 상태 확인 | `GET` | `/api/v1/ring` |
-| 대결 시작 | `POST` | `/api/v1/matches` |
-| 대결 취소 | `DELETE` | `/api/v1/matches/{matchId}` |
-
-`MatchRequestDto`
-
-```ts
-type MatchRequestDto = {
-  episodeAId: number;
-  episodeBId: number;
-};
-```
-
-프론트 메모:
-
-- 에피소드 생성 응답의 `canStartMatch`가 true면 “매치 하러 링 넘어가기 / 나중에 하기” 팝업을 띄울 수 있습니다.
-- 링으로 이동한 뒤 `GET /api/v1/ring`의 `availableEpisodes`로 선택 가능한 사건 목록을 구성할 수 있습니다.
-- 현재 Swagger에는 “점수대별 랜덤 매칭”을 서버에 요청하는 API가 명확히 없습니다.
-- 현재 Swagger에는 승자 제출 API가 없으므로 대결 완료 플로우는 구현 대기입니다.
-
-### 7. 링
-
-기능명세:
-
-- 현재 진행 가능한 매칭 리스트
-- 앞으로 진행 가능한 매칭 리스트
-- 월간 챔피언 리그
-- 연간 챔피언 리그
-
-API:
-
-| 용도 | Method | Path | Request | Response |
-| --- | --- | --- | --- | --- |
-| 링 화면 조회 | `GET` | `/api/v1/ring` | 없음 | `ApiResponse<RingResponse>` |
-| 대결 시작 | `POST` | `/api/v1/matches` | `MatchRequestDto` | `ApiResponse<number>` |
-| 대결 취소 | `DELETE` | `/api/v1/matches/{matchId}` | path `matchId` | `ApiResponse<void>` |
-
-`RingResponse`
-
-```ts
-type RingResponse = {
-  activeQuestion: unknown;
-  availableEpisodes: AvailableEpisodeDto[];
-  activeMatch?: ActiveMatchDto;
-  activeEvents: ActiveEventDto[];
-};
-
-type AvailableEpisodeDto = {
-  episodeId: number;
-  title: string;
-  episodeDate: string;
-};
-
-type ActiveMatchDto = {
-  matchId: number;
-  episodeA: EpisodeCardDto;
-  episodeB: EpisodeCardDto;
-  status: string;
-  currentRound: number;
-  totalRounds: number;
-};
-
-type EpisodeCardDto = {
-  episodeId: number;
-  title: string;
-  content: string;
-  episodeDate: string;
-};
-
-type ActiveEventDto = {
-  eventId: number;
-  type: string;
-  title: string;
-  displayDate: string;
-  scoreReward: number;
-};
-```
-
-프론트 메모:
-
-- 링 메인 화면은 `activeQuestion`, `availableEpisodes`, `activeMatch`, `activeEvents`를 한 번에 받아 구성합니다.
-- `activeMatch`가 있으면 진행 중 대결 카드 UI를 보여줄 수 있습니다.
-- `activeEvents`는 월간/연간 등 진행 가능한 이벤트 리스트로 보입니다.
-- `activeQuestion`은 Swagger schema가 비어 있어 실제 응답 구조 확인이 필요합니다.
-- `currentRound`, `totalRounds`가 있지만, 라운드 결과 제출 API가 없습니다.
-
-### 8. 에피소드 목록과 상세
-
-기능명세 연결:
-
-- 랭킹 리스트
-- 기록실 검색
-- 상세 내용
-
-API:
-
-| 용도 | Method | Path | Query |
+| 기능 | Method | Path | 프론트 상태 |
 | --- | --- | --- | --- |
-| 에피소드 목록 | `GET` | `/api/v1/episodes` | `status`, `size`, `cursor` |
-| 에피소드 상세 | `GET` | `/api/v1/episodes/{episodeId}` | 없음 |
+| 회원가입 | `POST` | `/api/v1/auth/signup` | 연동 |
+| 로그인 | `POST` | `/api/v1/auth/login` | 연동 |
+| 토큰 갱신 | `POST` | `/api/v1/auth/refresh` | 연동 |
+| 내 정보 | `GET` | `/api/v1/members/me` | 홈 분기 연동 |
+| 온보딩 상태 | `GET` | `/api/v1/members/me/status` | 등록/배치 재개 연동 |
+| 온보딩 완료 | `POST` | `/api/v1/members/me/onboarding/complete` | 10경기 완료 후 연동 |
+| 홈 | `GET` | `/api/v1/home` | 연동 |
+| 제목 추천 | `POST` | `/api/v1/episodes/title-suggestions` | 연동 |
+| 에피소드 생성 | `POST` | `/api/v1/episodes` | 연동 |
+| 에피소드 목록 | `GET` | `/api/v1/episodes` | 온보딩 복구/PENDING 배치 연동 |
+| 에피소드 상세 | `GET` | `/api/v1/episodes/{episodeId}` | 랭킹/기록 상세 연동 |
+| 에피소드 검색 | `GET` | `/api/v1/episodes/search` | 랭킹 검색 연동 |
+| 온보딩 배치 시작 | `POST` | `/api/v1/placements/onboarding` | 연동 |
+| 추가 배치 시작 | `POST` | `/api/v1/episodes/{episodeId}/placement` | 연동 |
+| 쇼 목록 | `GET` | `/api/v1/shows/available` | 홈/링 연동 |
+| 쇼 시작 | `POST` | `/api/v1/shows/{showId}/sessions` | 연동 |
+| 세션 진행 조회 | `GET` | `/api/v1/shows/sessions/{sessionId}` | 연동 |
+| 매치 결과 확정 | `POST` | `/api/v1/matches/{matchId}/result` | 연동 |
+| 링 통합 조회 | `GET` | `/api/v1/ring` | 직접 진행 매치/이벤트 연동 |
+| 전체 랭킹 | `GET` | `/api/v1/rankings` | 목록/페이지 이동 연동 |
+| 기록실 홈 | `GET` | `/api/v1/history` | 검색 포함 연동 |
+| 매치 기록 | `GET` | `/api/v1/history/matches` | 검색 포함 연동 |
+| 챔피언 기록 | `GET` | `/api/v1/history/champions` | 검색 포함 연동 |
 
-`EpisodeListItemResponse`
+다음 API는 현재 주요 UI 플로우에서 사용하지 않습니다.
 
-```ts
-type EpisodeListItemResponse = {
-  episodeId: number;
-  title: string;
-  contentPreview: string;
-  episodeDate: string;
-  status: string;
-  rankingPresent: boolean;
-  titleScore: number;
-  currentTitleId: number;
-  matchedAt?: string;
-  createdAt: string;
-};
-```
+- `POST /api/v1/matches`: 사용자가 후보를 직접 선택하는 화면을 제거했으므로 자동 배치/쇼 세션 API를 사용합니다.
+- `DELETE /api/v1/matches/{matchId}`: 매치 취소 UI가 현재 디자인에 없습니다.
+- `/api/v1/sample/*`: 백엔드 샘플 API입니다.
 
-`EpisodeDetailResponse`
+## 사용자 플로우
 
-```ts
-type EpisodeDetailResponse = {
-  episodeId: number;
-  memberId: number;
-  title: string;
-  content: string;
-  episodeDate: string;
-  status: string;
-  matchedAt?: string;
-  rankingPresent: boolean;
-  titleScore: number;
-  currentTitleId: number;
-  rankingVersion: number;
-  createdAt: string;
-  updatedAt: string;
-};
-```
+### 로그인과 온보딩 판단
 
-프론트 메모:
+1. 로그인 응답의 `onboardingCompleted`를 Auth.js 세션에 저장합니다.
+2. 미완료 사용자는 `/onboarding`으로 이동합니다.
+3. `/members/me/status`의 `activePlacementSessionId`가 있으면 `/ring`에서 기존 배치전을 재개합니다.
+4. 저장된 에피소드가 있으면 `/episodes` 결과로 작성 진행 상태를 복원합니다.
 
-- 목록은 cursor pagination입니다. `nextCursor`, `hasNext`를 사용합니다.
-- `status` 필터 값 enum은 Swagger에 명시되어 있지 않습니다.
-- Swagger 기준 검색어 query가 없습니다. 기능명세의 제목/내용 기반 검색은 아직 API가 부족합니다.
+### 온보딩 배치전
 
-### 9. 랭킹
+1. 제목 추천과 에피소드 생성을 5회 진행합니다.
+2. 마지막 생성 후 `/placements/onboarding`을 호출합니다.
+3. 서버가 반환한 `sessionId`, `nextMatch`로 링을 표시합니다.
+4. 승자 선택마다 `/matches/{matchId}/result`를 호출합니다.
+5. `/shows/sessions/{sessionId}`를 재조회해 다음 경기를 표시합니다.
+6. 10경기 완료 후에만 `/members/me/onboarding/complete`를 호출합니다.
 
-기능명세:
+온보딩 완료를 에피소드 등록 직후 처리하지 않는 이유는 로그인 분기와 실제 배치 진행 상태가 어긋나는 것을 방지하기 위해서입니다.
 
-- 월간 챔피언
-- 연간 챔피언
-- 올타임 챔피언
-- 검색바
-- 랭킹 리스트
-- 상세 내용
+### 추가 에피소드 배치전
 
-현재 연결 가능 API:
+1. `/episodes`로 에피소드를 생성합니다.
+2. 생성 응답의 `canStartMatch`가 true면 바로 시작/나중에 하기를 표시합니다.
+3. 바로 시작 시 `/episodes/{episodeId}/placement`를 호출합니다.
+4. 나중에 하기를 선택한 경우 홈에서 `status=PENDING` 에피소드를 조회해 다시 시작할 수 있습니다.
+5. 5경기 완료 후 에피소드 상세와 랭킹을 재조회해 최종 점수와 전체 순위를 표시합니다.
 
-- `GET /api/v1/episodes`
-- `GET /api/v1/episodes/{episodeId}`
+### Weekly/Monthly Show
 
-프론트 메모:
+1. 홈과 링에서 `/shows/available`을 조회합니다.
+2. `sessionId`가 있으면 기존 쇼를 재개합니다.
+3. 없으면 `/shows/{showId}/sessions`로 시작합니다.
+4. 배치전과 동일한 세션/결과 반복 프로토콜을 사용합니다.
+5. Monthly 완료 화면은 mock 디자인을 따라 월간/연간 타이틀 벨트를 표시합니다.
 
-- 전용 랭킹 API는 현재 Swagger에 없습니다.
-- 에피소드 목록/상세의 `rankingPresent`, `titleScore`, `currentTitleId`, `rankingVersion`으로 일부 표시를 구성할 수는 있습니다.
-- 월간/연간/올타임 챔피언을 안정적으로 구분하기에는 정보가 부족합니다.
+Weekly 대진 구성과 Monthly 승자연전/연간 타이틀전 순서는 서버가 생성한 `nextMatch` 순서를 그대로 신뢰합니다.
 
-### 10. 기록실
+### 링
 
-기능명세:
+- 승자 확정 중에는 입력을 잠가 중복 제출을 막습니다.
+- 승패 확정마다 mock과 동일한 폭죽 파티클을 860ms 표시합니다.
+- 파티클 재생과 API 호출은 병렬로 진행하고 둘 다 끝난 후 다음 경기로 전환합니다.
+- `prefers-reduced-motion` 사용자는 파티클 지연을 생략합니다.
+- URL의 `sessionId`, `flow`, `episodeId`로 새로고침과 직접 진입을 복구합니다.
 
-- 검색바
-- 역대 매칭 기록 리스트
-- 승/패 표시
+### 랭킹
 
-현재 연결 가능 API:
+- 일반 목록은 `/rankings?page&size`를 사용합니다.
+- 랭킹 API에 검색 조건이 없으므로 `/episodes/search`의 에피소드 ID와 전체 랭킹을 서버에서 교차합니다.
+- 챔피언 기록의 `championTitle`을 월간/연간/올타임으로 정규화합니다.
+- 타입 문자열이 없으면 달성 시점과 전체 1위를 이용해 빈 챔피언 카드를 보완합니다.
+- 랭킹 카드는 `/episodes/{episodeId}` 상세로 이동합니다.
 
-- `GET /api/v1/episodes`
-- `GET /api/v1/episodes/{episodeId}`
-- `GET /api/v1/ring`의 `activeMatch`
+### 기록실
 
-프론트 메모:
+- 홈은 `/history?query`를 사용합니다.
+- 전체보기는 `/history/champions`, `/history/matches`를 사용합니다.
+- 검색어는 URL query로 유지합니다.
+- 백엔드 응답에 이벤트 종류가 없으므로 배치/데뷔 필터는 제공하지 않습니다.
+- 전체보기 API의 현재 최대 조회 수인 50개를 사용합니다.
 
-- 역대 매칭 기록 전용 목록 API는 현재 Swagger에 없습니다.
-- 승/패 이력을 리스트로 보여주려면 match history API가 필요합니다.
-- `POST /api/v1/matches`와 `DELETE /api/v1/matches/{matchId}`만으로는 기록실을 구현할 수 없습니다.
+## 프론트 보완 상태
 
-## 구현 우선순위 제안
+백엔드 응답에 세션 완료 순위표와 챔피언 결과가 없으므로, 프론트는 진행 중 받은 서버 결과를 `localStorage`에 보조 저장합니다.
 
-1. 로그인 응답의 `onboardingCompleted`를 세션에 저장하고 로그인 후 분기 처리
-2. 온보딩 에피소드 생성 API 연결
-3. AI 제목 생성 API 연결
-4. 온보딩 완료 API 연결
-5. 홈 데이터 API 연결
-6. 링 화면 조회 `GET /api/v1/ring` 연결
-7. 대결 시작/취소 `POST /api/v1/matches`, `DELETE /api/v1/matches/{matchId}` 연결
-8. 승자 제출/매치 완료 API가 추가되면 대결 완료 플로우 연결
-9. 랭킹/기록실은 백엔드 API 갭 확인 후 진행
+- 서버가 승패와 점수의 원본입니다.
+- 저장소는 결과 화면과 새로고침 복구에만 사용합니다.
+- 저장 실패가 경기 진행을 막지 않습니다.
+- 세션 키는 `mme.session-history.v1.{sessionId}` 형식입니다.
 
-## 백엔드 확인 필요 항목
+Monthly 세션은 총 매치 수가 10 이상이면 마지막 직전 경기 승자를 월간 챔피언, 마지막 경기 승자를 연간 챔피언으로 표시합니다. 총 매치 수가 9라면 마지막 승자를 두 결과의 기본값으로 사용합니다.
 
-- `CreateEpisodeRequest.content`가 실제로 필수인지 여부
-- 온보딩에서 5개 미만 등록 후 종료할 때 `completeOnboarding`을 호출해도 되는지 여부
-- 날짜를 월 단위로만 입력하는 케이스를 API가 어떻게 받을지
-- `GET /api/v1/ring`의 `activeQuestion` 실제 응답 구조
-- `ActiveEventDto.type`, `ActiveMatchDto.status`, episode `status`의 enum 값
-- 대결 승자 선택/결과 제출 API 제공 여부
-- 대결 완료 후 점수 반영과 다음 라운드 진행 방식
-- 온보딩 배치전 10판을 현재 matches API로 어떻게 표현하는지
-- `GET /api/v1/home`의 `canStartMatch=false`, `upcomingEvents=[]`가 임시 구현인지 여부
-- 점수대별 랜덤 매칭을 서버가 해주는 API 제공 여부
-- 랭킹 전용 API 제공 여부
-- 기록실의 역대 매칭 기록 및 승/패 API 제공 여부
-- 제목/내용 검색 API 제공 여부
+`GET /ring`의 이벤트만 있고 `/shows/available` 결과가 없는 경우에는 `eventId`를 `showId`로 사용해 시작을 시도합니다. 서버 ID 정책이 다르면 해당 카드는 API 오류 메시지를 표시합니다.
+
+## 제외 범위
+
+푸시 알림은 현재 주요 기능 범위에서 제외합니다. 알림 구독, 디바이스 토큰 등록, 알림 목록 API는 연결하지 않습니다.
