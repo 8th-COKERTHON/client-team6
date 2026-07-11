@@ -3,7 +3,7 @@ import allTimeBeltImage from "@/public/images/ranking/champion-belt-all-time.png
 import annualBeltImage from "@/public/images/ranking/champion-belt-annual.png";
 import monthlyBeltImage from "@/public/images/ranking/champion-belt-monthly.png";
 
-type ChampionScope = "all-time" | "annual" | "monthly";
+export type ChampionScope = "all-time" | "annual" | "monthly";
 
 export type RankingChampion = {
   englishLabel: string;

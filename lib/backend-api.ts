@@ -105,6 +105,21 @@ export async function searchEpisodes(options: {
   );
 }
 
+export async function searchAllEpisodes(query: string, maxPages = 20) {
+  const items: EpisodeSearchResponse["items"] = [];
+
+  for (let page = 0; page < maxPages; page += 1) {
+    const response = await searchEpisodes({ page, query, size: 50 });
+    items.push(...response.items);
+
+    if (!response.hasNext) {
+      break;
+    }
+  }
+
+  return items;
+}
+
 export async function startOnboardingPlacement() {
   return backendRequest<ShowSessionProgressResponse>(
     "/api/v1/placements/onboarding",

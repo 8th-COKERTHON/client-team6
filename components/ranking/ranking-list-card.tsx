@@ -1,10 +1,12 @@
 import Image, { type StaticImageData } from "next/image";
+import Link from "next/link";
 import defaultBadgeImage from "@/public/images/ranking/rank-badge-default.png";
 import firstBadgeImage from "@/public/images/ranking/rank-badge-first.png";
 import secondBadgeImage from "@/public/images/ranking/rank-badge-second.png";
 import thirdBadgeImage from "@/public/images/ranking/rank-badge-third.png";
 
 export type RankingEntry = {
+  episodeId?: number;
   rank: number;
   score: number;
   title: string;
@@ -19,9 +21,8 @@ const TOP_BADGES: Partial<Record<number, StaticImageData>> = {
 export function RankingListCard({ entry }: { entry: RankingEntry }) {
   const badgeImage = getBadgeImage(entry.rank);
   const isPodiumRank = entry.rank <= 3;
-
-  return (
-    <article className="flex min-h-[3.875rem] w-full items-center justify-between gap-4 px-4 py-4">
+  const content = (
+    <>
       <div className="flex min-w-0 items-center gap-4">
         <span className="relative flex h-[30px] w-[26px] shrink-0 items-center justify-center">
           <Image
@@ -49,7 +50,24 @@ export function RankingListCard({ entry }: { entry: RankingEntry }) {
         <span className="font-semibold">{entry.score}</span>
         <span className="font-medium"> 점</span>
       </p>
-    </article>
+    </>
+  );
+
+  if (!entry.episodeId) {
+    return (
+      <article className="flex min-h-[3.875rem] w-full items-center justify-between gap-4 px-4 py-4">
+        {content}
+      </article>
+    );
+  }
+
+  return (
+    <Link
+      className="flex min-h-[3.875rem] w-full items-center justify-between gap-4 px-4 py-4 transition-colors hover:bg-[#292e38]/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#ff0002]"
+      href={`/episodes/${entry.episodeId}`}
+    >
+      {content}
+    </Link>
   );
 }
 
