@@ -144,23 +144,6 @@ function DailyEpisodeCard({
           episodeId={pendingEpisode.episodeId}
           title={pendingEpisode.title}
         />
-      ) : home.todayEpisode ? (
-        <Link
-          className="group mt-4 flex min-h-[5.5625rem] items-center justify-between rounded-[20px] border border-[#ff0002]/30 bg-[#292e38] p-5"
-          href={`/episodes/${home.todayEpisode.episodeId}`}
-        >
-          <span className="min-w-0">
-            <span className="block truncate text-lg font-semibold leading-[1.4] text-white">
-              {home.todayEpisode.title}
-            </span>
-            <span className="mt-1.5 block text-[13px] font-medium leading-[1.4] text-[#b1b9c5]">
-              오늘 등록한 에피소드를 확인하세요.
-            </span>
-          </span>
-          <span className="ml-4 shrink-0 text-sm font-semibold text-white">
-            보기
-          </span>
-        </Link>
       ) : (
         <Link
           className="group mt-4 flex min-h-[5.5625rem] items-center justify-between rounded-[20px] border border-[#ff0002]/30 bg-[#292e38] p-5 transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ff0002]"
