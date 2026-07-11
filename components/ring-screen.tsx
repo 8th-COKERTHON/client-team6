@@ -3,55 +3,20 @@
 import Image from "next/image";
 import Link from "next/link";
 import {
-  useMemo,
   useRef,
   useState,
   type ReactNode,
   type Ref,
 } from "react";
-import { ActionButton, ActionButtonLink } from "@/components/ui/action-button";
+import { ActionButton } from "@/components/ui/action-button";
 
-export type ActiveEventDto = {
-  displayDate: string;
-  eventId: number;
-  scoreReward: number;
-  title: string;
-  type: string;
-};
-
-export type AvailableEpisodeDto = {
+export type RingBattleEpisode = {
+  content: string;
   episodeDate: string;
   episodeId: number;
-  title: string;
-};
-
-export type EpisodeCardDto = AvailableEpisodeDto & {
-  content: string;
-};
-
-export type ActiveMatchDto = {
-  currentRound: number;
-  episodeA: EpisodeCardDto;
-  episodeB: EpisodeCardDto;
-  matchId: number;
-  status: string;
-  totalRounds: number;
-};
-
-export type RingResponse = {
-  activeEvents: ActiveEventDto[];
-  activeMatch?: ActiveMatchDto;
-  activeQuestion: unknown;
-  availableEpisodes: AvailableEpisodeDto[];
-};
-
-type RingScreenProps = {
-  data: RingResponse;
-};
-
-export type RingBattleEpisode = EpisodeCardDto & {
   recordLabel: string;
   score: number;
+  title: string;
 };
 
 export type RingMatchScreenProps = {
@@ -74,94 +39,12 @@ type BattleRound = {
   episodeB: BattleEpisode;
 };
 
-type RingView = "empty" | "battle" | "complete";
-
 type BattleEpisode = RingBattleEpisode;
 
-const MOCK_EPISODE_RECORD = "5승 2패";
-const MOCK_EPISODE_SCORE = 1000;
 const INITIAL_CARD_FLIP_STATE: CardFlipState = {
   a: false,
   b: false,
 };
-
-export function RingScreen({ data }: RingScreenProps) {
-  const activeMatch = data.activeMatch ?? null;
-  const initialView = getInitialView(activeMatch);
-  const [view, setView] = useState<RingView>(initialView);
-  const [roundIndex, setRoundIndex] = useState(() =>
-    getInitialRoundIndex(activeMatch),
-  );
-  const [selectedSide, setSelectedSide] = useState<BattleSide | null>(null);
-  const [flippedCards, setFlippedCards] = useState<CardFlipState>(
-    INITIAL_CARD_FLIP_STATE,
-  );
-  const rounds = useMemo(
-    () => createBattleRounds(activeMatch),
-    [activeMatch],
-  );
-  const currentRound = rounds[roundIndex] ?? rounds[0];
-  const completedScore =
-    MOCK_EPISODE_SCORE + (data.activeEvents[0]?.scoreReward ?? 0);
-
-  function selectWinner(side: BattleSide) {
-    setSelectedSide(side);
-  }
-
-  function toggleCard(side: BattleSide) {
-    setFlippedCards((current) => ({
-      ...current,
-      [side]: !current[side],
-    }));
-  }
-
-  function moveNextRound() {
-    if (!selectedSide) {
-      return;
-    }
-
-    const nextRoundIndex = roundIndex + 1;
-
-    if (nextRoundIndex >= rounds.length) {
-      setView("complete");
-      return;
-    }
-
-    setRoundIndex(nextRoundIndex);
-    setSelectedSide(null);
-    setFlippedCards(INITIAL_CARD_FLIP_STATE);
-  }
-
-  return (
-    <main className="min-h-svh bg-[#12161b] text-white">
-      <div className="relative mx-auto min-h-svh w-full max-w-[375px] overflow-hidden bg-[#12161b]">
-        {view !== "complete" ? (
-          <RingArenaBackground isSubtle={view === "battle"} />
-        ) : null}
-        <RingHeader />
-
-        {view === "empty" ? (
-          <EmptyRingState />
-        ) : view === "complete" ? (
-          <CompleteScreen score={completedScore} />
-        ) : currentRound ? (
-          <BattleScreen
-            currentRound={currentRound}
-            flippedCards={flippedCards}
-            onMoveNext={moveNextRound}
-            onSelectWinner={selectWinner}
-            onToggleDetail={toggleCard}
-            roundIndex={roundIndex}
-            selectedSide={selectedSide}
-            totalRounds={rounds.length}
-          />
-        ) : (
-          <EmptyRingState />
-        )}
-      </div>
-    </main>
-  );
-}
 
 export function RingMatchScreen({
   actionLabel,
@@ -227,19 +110,6 @@ export function RingMatchScreen({
         />
       </div>
     </main>
-  );
-}
-
-function EmptyRingState() {
-  return (
-    <>
-      <section className="relative z-10 flex min-h-svh items-start justify-center px-4 pt-[calc(max(env(safe-area-inset-top),44px)+105px)]">
-        <h1 className="w-full text-center text-xl font-semibold leading-[1.4] text-white">
-          현재 진행할 수 있는 매치가 없습니다.
-        </h1>
-      </section>
-      <BottomHomeIndicator />
-    </>
   );
 }
 
@@ -492,42 +362,6 @@ function BattleCardFace({
   );
 }
 
-function CompleteScreen({ score }: { score: number }) {
-  return (
-    <>
-      <section className="relative z-10 flex min-h-svh flex-col items-center px-4 pt-[calc(max(env(safe-area-inset-top),44px)+211px)] pb-[calc(7.75rem+env(safe-area-inset-bottom))]">
-        <div className="flex size-[120px] items-center justify-center rounded-full bg-[#ff0002]">
-          <CheckIcon className="size-14 text-white" />
-        </div>
-        <h1 className="mt-0 text-center text-xl font-semibold leading-[1.4] text-white">
-          배치전이 완료되었습니다.
-        </h1>
-        <div className="mt-10 flex w-full flex-col gap-3">
-          <ResultRow label="오늘의 사건 점수" value={`${score}점`} />
-          <ResultRow label="순위" value="0등" />
-        </div>
-      </section>
-
-      <BottomActionArea>
-        <ActionButtonLink href="/ranking">랭킹 보러가기</ActionButtonLink>
-      </BottomActionArea>
-    </>
-  );
-}
-
-function ResultRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex h-[50px] items-center justify-between rounded-xl bg-[#292e38] px-5 py-3.5">
-      <span className="text-base font-semibold leading-[1.4] text-[#f0f0f2]">
-        {label}
-      </span>
-      <span className="text-base font-semibold leading-[1.4] text-[#f0f0f2]">
-        {value}
-      </span>
-    </div>
-  );
-}
-
 function RoundCounter({ current, total }: { current: number; total: number }) {
   return (
     <div className="flex justify-end px-1 text-sm leading-[1.4]">
@@ -542,14 +376,6 @@ function BottomActionArea({ children }: { children: ReactNode }) {
   return (
     <div className="absolute inset-x-0 bottom-0 z-20 flex flex-col items-center px-4 pt-[14px]">
       <div className="w-full max-w-[343px]">{children}</div>
-      <HomeIndicator />
-    </div>
-  );
-}
-
-function BottomHomeIndicator() {
-  return (
-    <div className="absolute inset-x-0 bottom-0 z-20">
       <HomeIndicator />
     </div>
   );
@@ -623,65 +449,6 @@ function BackIcon() {
       />
     </svg>
   );
-}
-
-function CheckIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden="true"
-      className={className}
-      fill="none"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="m5 12.5 4.2 4.2L19 7"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="2.4"
-      />
-    </svg>
-  );
-}
-
-function createBattleRounds(activeMatch: ActiveMatchDto | null) {
-  if (!activeMatch) {
-    return [];
-  }
-
-  const episodeA = createBattleEpisode(activeMatch.episodeA);
-  const episodeB = createBattleEpisode(activeMatch.episodeB);
-  const totalRounds = Math.max(activeMatch.totalRounds, 1);
-
-  return Array.from({ length: totalRounds }, (_, index): BattleRound =>
-    index % 2 === 0
-      ? { episodeA, episodeB }
-      : { episodeA: episodeB, episodeB: episodeA },
-  );
-}
-
-function createBattleEpisode(episode: EpisodeCardDto): BattleEpisode {
-  return {
-    ...episode,
-    recordLabel: MOCK_EPISODE_RECORD,
-    score: MOCK_EPISODE_SCORE,
-  };
-}
-
-function getInitialRoundIndex(activeMatch: ActiveMatchDto | null) {
-  if (!activeMatch) {
-    return 0;
-  }
-
-  return Math.min(
-    Math.max(activeMatch.currentRound - 1, 0),
-    Math.max(activeMatch.totalRounds - 1, 0),
-  );
-}
-
-function getInitialView(activeMatch: ActiveMatchDto | null): RingView {
-  return activeMatch ? "battle" : "empty";
 }
 
 function formatDateLabel(value?: string | null) {
